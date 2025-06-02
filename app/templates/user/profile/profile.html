@@ -1,0 +1,63 @@
+{% extends "user/base.html" %} {% block title %}Thông tin tài khoản{% endblock
+%} {% block content %}
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+/>
+<link rel="stylesheet" href="/static/css/user.css" />
+<nav class="profile-container">
+  <div class="profile-header">
+    <div class="profile-avatar">
+      <i class="fas fa-user"></i>
+    </div>
+    <h3>Thông tin tài khoản</h3>
+    <div class="action-buttons">
+      <a
+        href=" {{ url_for('user.profile') }} "
+        style="
+          color: white;
+          font-weight: bold;
+          font-size: larger;
+          transform: none;
+        "
+      >
+        <i class="fa-regular fa-address-card"></i>Xem thông tin
+      </a>
+      <a href=" {{ url_for('user.updateProfile') }}">
+        <i class="fas fa-edit"></i> Chỉnh sửa thông tin
+      </a>
+
+      <a href=" {{ url_for('user.changePassword' )}}">
+        <i class="fas fa-key"></i> Đổi mật khẩu
+      </a>
+    </div>
+  </div>
+
+  <div class="profile-body">
+    <div class="info-group">
+      <span class="info-label">Họ và tên</span>
+      <div class="info-value">{{ user.fullname }}</div>
+    </div>
+
+    <div class="info-group">
+      <span class="info-label">Tên đăng nhập</span>
+      <div class="info-value">{{ user.username }}</div>
+    </div>
+
+    <div class="info-group">
+      <span class="info-label">Tuổi</span>
+      <div class="info-value">{{ user.age }}</div>
+    </div>
+
+    <div class="info-group">
+      <span class="info-label">Email</span>
+      <div class="info-value">{{ user.email }}</div>
+    </div>
+
+    <div class="info-group">
+      <span class="info-label">Ngày tạo tài khoản</span>
+      <div class="info-value">{{ user.created_at.strftime('%d/%m/%Y') }}</div>
+    </div>
+  </div>
+</nav>
+{% endblock %}

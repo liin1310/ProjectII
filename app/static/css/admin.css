@@ -1,0 +1,29 @@
+/* Custom table styles */
+.table-responsive {
+  margin-top: 20px;
+}
+
+.table th {
+  white-space: nowrap;
+}
+
+/* Form styles */
+.card {
+  margin-bottom: 30px;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+  font-weight: 600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .d-md-flex {
+    flex-direction: column;
+  }
+  .me-md-2 {
+    margin-right: 0 !important;
+    margin-bottom: 10px;
+  }
+}

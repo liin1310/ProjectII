@@ -1,0 +1,125 @@
+:root {
+  --primary-color: #2c7a7b; /* Teal đậm cho các yếu tố chính */
+  --primary-dark: #225e5f; /* Teal đậm hơn cho trạng thái hover */
+  --button-hover: #3b8d8e; /* Teal sáng cho trạng thái hover của nút */
+  --secondary-color: #f9f9f5; /* Ivory nhạt cho nền phụ */
+  --text-color: #1f2937; /* Xám xanh đậm cho chữ chính */
+  --border-radius: 10px; /* Độ bo góc, giữ nguyên */
+  --light-gray: #edf2f7; /* Xám nhạt cho nền và viền */
+  --medium-gray: #a0aec0; /* Xám trung cho viền và yếu tố phụ */
+  --dark-gray: #4a5568; /* Xám đậm cho chữ và biểu tượng */
+  --error-bg: #fed7d7; /* Nền coral nhạt cho thông báo lỗi */
+  --error-text: #9b2c2c; /* Coral đậm cho chữ thông báo lỗi */
+  --error-border: #f4a1a1; /* Viền coral nhạt cho thông báo lỗi */
+  --success-bg: #d4f4e2; /* Nền mint nhạt cho thông báo thành công */
+  --success-text: #276749; /* Mint đậm cho chữ thông báo thành công */
+  --success-border: #9ae6b4; /* Viền mint trung cho thông báo thành công */
+  --white: #ffffff; /* Trắng tinh cho viền hoặc nền */
+}
+
+body {
+  font-family: "Segoe UI", sans-serif;
+  background-color: var(--secondary-color);
+}
+
+.container {
+  width: 100%;
+  max-width: 450px;
+  margin: 50px auto;
+  background-color: var(--light-gray);
+  border-radius: var(--border-radius);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+}
+
+h2 {
+  text-align: center;
+  color: var(--primary-color);
+  margin-bottom: 25px;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--dark-gray);
+  font-weight: 500;
+}
+
+/* Thông báo */
+.alert {
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: calc(var(--border-radius) - 5px);
+}
+
+.alert-error {
+  background-color: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+}
+
+.alert-success {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+/* Form */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"] {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0 20px;
+  border: 1px solid var(--medium-gray);
+  border-radius: var(--border-radius);
+  box-sizing: border-box;
+  font-size: 14px;
+  transition: border-color 0.3s ease;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+/* Nút submit */
+input[type="submit"] {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: var(--border-radius);
+  width: 100%;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+input[type="submit"]:hover {
+  background-color: var(--button-hover);
+  transform: scale(1.02);
+}
+
+/* Link phụ */
+.login-link {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.login-link a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.login-link a:hover {
+  color: var(--button-hover);
+  text-decoration: underline;
+}

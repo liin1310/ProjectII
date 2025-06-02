@@ -1,0 +1,81 @@
+<!-- Đăng kí -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/auth.css') }}"
+    />
+    <title>Register</title>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Đăng ký tài khoản</h2>
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">{{ message }}</div>
+      {% endfor %} {% endif %} {% endwith %}
+      <form action="/register" method="POST">
+        <label for="fullname">Họ và tên:</label>
+        <input
+          type="text"
+          id="fullname"
+          name="fullname"
+          placeholder="Nhập họ tên..."
+          required
+        />
+        <label for="username">Tên đăng nhập:</label>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          placeholder="Nhập tên đăng nhập..."
+          required
+        />
+        <label for="age">Tuổi:</label>
+        <input
+          type="number"
+          id="age"
+          name="age"
+          placeholder="Nhập tuổi..."
+          min="1"
+          step="1"
+          required
+        />
+        <label for="email">Email:</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          placeholder="Nhập email..."
+          required
+        />
+
+        <label for="password">Mật khẩu:</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          placeholder="Nhập mật khẩu..."
+          required
+        />
+
+        <label for="confirm_password">Xác nhận mật khẩu:</label>
+        <input
+          type="password"
+          id="confirm_password"
+          name="confirm_password"
+          placeholder="Nhập lại mật khẩu..."
+          required
+        />
+
+        <input type="submit" value="Đăng ký" />
+      </form>
+      <div class="login-link">
+        Đã có tài khoản? <a href="/login">Đăng nhập</a>
+      </div>
+    </div>
+  </body>
+</html>

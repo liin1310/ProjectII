@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}{% endblock %}</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/user.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <header>
+      <a id="main" href="{{ url_for('auth.index') }}">
+        <i class="fa-solid fa-house"></i>
+      </a>
+
+      <div class="genre-wrapper">
+        <div class="genre-list" id="visibleGenres">
+          {% for category in categories %}
+          <a
+            href="{{ url_for('user.search', category_id = category.category_id) }}"
+            class="genre-item"
+            >{{ category.name }}</a
+          >
+          {% endfor %}
+        </div>
+        <button class="toggle-btn" onclick="toggleGenres()">
+          <i id="toggle-icon" class="fas fa-chevron-down"></i>
+        </button>
+      </div>
+      <form
+        class="search-bar"
+        method="get"
+        action="{{ url_for('user.search') }}"
+      >
+        <input
+          type="text"
+          name="keyword"
+          placeholder="Tìm kiếm..."
+          value="{{ keyword or '' }}"
+        />
+        <button type="submit"><i class="fas fa-search"></i></button>
+      </form>
+      <!-- Thêm vào header hoặc navbar -->
+      {% if 'user_id' in session %}
+      <div class="user-profile">
+        <i class="fas fa-user-circle"></i>
+        <!-- Menu dropdown thông tin -->
+        <div class="user-dropdown">
+          <a href="{{ url_for('user.profile') }}">Thông tin tài khoản</a>
+          <a href="{{ url_for('user.library') }}">Danh sách sách đã đọc</a>
+          <a href="{{ url_for('auth.logout') }}">Đăng xuất</a>
+        </div>
+      </div>
+      {% else %}
+      <nav>
+        <a href="{{ url_for('auth.register') }}">Đăng ký</a>
+        <a href="{{ url_for('auth.login') }}">Đăng nhập</a>
+      </nav>
+      {% endif %}
+    </header>
+
+    <div class="main-content">
+      {% block content %}
+      <!-- Tuỳ trang -->
+      {% endblock %}
+    </div>
+
+    <script>
+      function toggleGenres() {
+        const hiddenGenres = document.querySelectorAll(".genre-item.hidden");
+        const toggleIcon = document.getElementById("toggle-icon");
+
+        hiddenGenres.forEach((genre) => {
+          genre.classList.toggle("hidden");
+        });
+
+        toggleIcon.classList.toggle("fa-chevron-down");
+        toggleIcon.classList.toggle("fa-chevron-up");
+      }
+    </script>
+  </body>
+</html>

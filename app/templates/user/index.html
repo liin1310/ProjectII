@@ -1,0 +1,93 @@
+{% extends "user/base.html" %} {% block title %}Trang Chủ{% endblock %} {% block
+content %}
+<div class="container mt-4">
+  <div class="text-center mb-5">
+    <h1 class="display-4">Chào mừng đến với Thế giới sách online!</h1>
+    <p class="lead">Khám phá kho sách đa dạng với hàng ngàn tựa sách hay</p>
+  </div>
+
+  <!-- Danh sách sách nổi bật -->
+  <div class="mb-5">
+    <h2 class="mb-4 border-bottom pb-2">
+      <i class="fas fa-star text-warning"></i> Sách nổi bật
+    </h2>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+      {% for book in featured_books %}
+      <div class="col">
+        <div class="card h-100 shadow-sm">
+          <a href="{{ url_for('user.book_detail', book_id=book.book_id) }}">
+            <img
+              src="{{ book.cover_url or url_for('static', filename='images/default-book.jpg') }}"
+              class="card-img-top"
+              alt="{{ book.title }}"
+              style="height: 300px; object-fit: cover"
+            />
+          </a>
+          <div class="card-body">
+            <h5 class="card-title">
+              <a
+                href="{{ url_for('user.book_detail', book_id=book.book_id) }}"
+                class="text-decoration-none text-dark"
+              >
+                {{ book.title|truncate(30) }}
+              </a>
+            </h5>
+            <p class="card-text text-muted">
+              <small>{{ book.author_name or 'Tác giả chưa xác định' }}</small>
+            </p>
+          </div>
+          <div class="card-footer bg-white">
+            <a
+              href="{{ url_for('user.read_book', book_id=book.book_id) }}"
+              class="btn btn-sm btn-primary w-100"
+            >
+              <i class="fas fa-book-open"></i> Đọc ngay
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Danh sách sách mới nhất -->
+  <div class="mb-5">
+    <h2 class="mb-4 border-bottom pb-2">
+      <i class="fas fa-clock text-info"></i> Sách mới cập nhật
+    </h2>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+      {% for book in books %}
+      <div class="col">
+        <div class="card h-100 shadow-sm">
+          <div class="position-absolute top-0 end-0 m-2">
+            <span class="badge bg-success">Mới</span>
+          </div>
+          <a href="{{ url_for('user.book_detail', book_id=book.book_id) }}">
+            <img
+              src="{{ url_for('static', filename=book.cover_url) }}"
+              class="card-img-top"
+              alt="{{ book.title }}"
+              style="height: 250px; object-fit: cover"
+            />
+          </a>
+          <div class="card-body">
+            <h5 class="card-title">
+              <a
+                href="{{ url_for('user.book_detail', book_id=book.book_id) }}"
+                class="text-decoration-none text-dark"
+              >
+                {{ book.title|truncate(25) }}
+              </a>
+            </h5>
+            <p class="card-text text-muted small">
+              {{ book.category_name or 'Chưa phân loại' }} • {{
+              book.published_year or 'N/A' }}
+            </p>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

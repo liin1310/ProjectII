@@ -1,0 +1,195 @@
+{% extends 'user/base.html' %} {% block title %}Chi tiết sách - {{ book.title
+}}{% endblock %} {% block content %}
+<div class="book-container">
+  <div class="row g-0">
+    <!-- Hình ảnh bìa sách -->
+    <div class="col-md-4 book-image">
+      {% if book.cover_url %}
+      <img
+        src="{{ url_for('static', filename=book.cover_url) }}"
+        alt="{{ book.title }}"
+        class="img-fluid"
+      />
+      {% else %}
+      <img
+        src="https://via.placeholder.com/200x300?text=No+Cover"
+        alt="{{ book.title }}"
+        class="img-fluid"
+      />
+      {% endif %}
+    </div>
+    <!-- Thông tin sách -->
+    <div class="col-md-8 book-content">
+      <h1 class="book-title">{{ book.title }}</h1>
+      <div class="book-info">
+        <p>
+          <i class="fas fa-user"></i><strong>Tác giả:</strong> {{
+          book.author_name | default('Chưa xác định', true) }}
+        </p>
+        <p>
+          <i class="fas fa-tags"></i><strong>Thể loại:</strong> {{
+          book.category_names | default('Chưa xác định', true) }}
+        </p>
+        <p>
+          <i class="fas fa-clock"></i><strong>Lần đọc cuối:</strong> {{
+          book.last_read_at | default('Chưa đọc', true) }}
+        </p>
+      </div>
+      <!-- Tiến trình đọc -->
+      {% if book.last_position and book.last_position > 0 %}
+      <div class="progress-container">
+        <label class="form-label"
+          >Tiến trình đọc: {{ book.last_position }}%</label
+        >
+        <div class="progress">
+          <div
+            class="progress-bar"
+            role="progressbar"
+            aria-valuenow="{{ book.last_position }}"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          ></div>
+        </div>
+      </div>
+      {% endif %}
+      <!-- Mô tả sách -->
+      <div class="book-description">
+        <h5>Mô tả</h5>
+        <p>{{ book.description | default('Không có mô tả', true) }}</p>
+      </div>
+      <!-- Đánh giá sao -->
+      <div class="rating-section">
+        <!-- Hiển thị sao trung bình -->
+        <div class="rating-average">
+          {% if book.average_rating %}
+          <h5>
+            Điểm đánh giá trung bình: {{ book.average_rating | round(1) }} / 5
+            ({{ book.rating_count }} lượt đánh giá)
+          </h5>
+          <div class="average-stars">
+            {% for i in range(1, 6) %}
+            <i
+              class="fas fa-star {% if i <= book.average_rating | round(0, 'floor') %}filled{% endif %}"
+            ></i>
+            {% endfor %}
+          </div>
+          {% else %}
+          <h5>Điểm đánh giá trung bình: Chưa có đánh giá</h5>
+          {% endif %}
+        </div>
+        <!-- Cho phép người dùng đánh giá -->
+        <h5>Đánh giá của người dùng:</h5>
+        <div class="rating-stars" data-book-id="{{ book.book_id }}">
+          <i class="fas fa-star" data-value="1"></i>
+          <i class="fas fa-star" data-value="2"></i>
+          <i class="fas fa-star" data-value="3"></i>
+          <i class="fas fa-star" data-value="4"></i>
+          <i class="fas fa-star" data-value="5"></i>
+        </div>
+      </div>
+      <!-- Nút hành động -->
+      <div class="action-buttons">
+        <a
+          href="{{ url_for('user.read_book', book_id=book.book_id) }}"
+          class="btn btn-read-from-start"
+        >
+          <i class="fas fa-book-open"></i> Đọc từ đầu
+        </a>
+        {% if book.last_position and book.last_position > 0 %}
+        <a
+          href="{{ url_for('user.read_from_position', book_id=book.book_id, position=book.last_position) }}"
+          class="btn btn-continue"
+        >
+          <i class="fas fa-forward"></i> Đọc tiếp
+        </a>
+        {% endif %}
+        <a href="{{ url_for('user.library') }}" class="btn btn-back">
+          <i class="fas fa-arrow-left"></i> Quay lại thư viện
+        </a>
+        <a href="#" class="btn btn-share" onclick="shareBook()">
+          <i class="fas fa-share-alt"></i> Chia sẻ
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tài nguyên bổ sung -->
+<link
+  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+  rel="stylesheet"
+/>
+<link
+  href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
+  rel="stylesheet"
+/>
+
+<!-- JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Chia sẻ sách
+  function shareBook() {
+    const url = window.location.href;
+    const title = "{{ book.title }}";
+    if (navigator.share) {
+      navigator
+        .share({
+          title: title,
+          url: url,
+        })
+        .catch(console.error);
+    } else {
+      alert(
+        "Chức năng chia sẻ không được hỗ trợ trên trình duyệt này. Bạn có thể sao chép link: " +
+          url
+      );
+    }
+  }
+
+  // Xử lý đánh giá sao
+  document.querySelectorAll(".rating-stars .fa-star").forEach((star) => {
+    star.addEventListener("click", async () => {
+      const rating = star.getAttribute("data-value");
+      const bookId = star.parentElement.getAttribute("data-book-id");
+
+      try {
+        const response = await fetch("{{ url_for('user.submit_rating') }}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}",
+          },
+          body: JSON.stringify({ book_id: bookId, rating: rating }),
+        });
+        const result = await response.json();
+        if (result.success) {
+          alert("Đánh giá của bạn đã được ghi nhận!");
+          window.location.reload();
+        } else {
+          alert("Lỗi: " + result.error);
+        }
+      } catch (error) {
+        alert("Lỗi khi gửi đánh giá: " + error.message);
+      }
+    });
+
+    star.addEventListener("mouseover", () => {
+      star.classList.add("filled");
+      let prev = star.previousElementSibling;
+      while (prev) {
+        prev.classList.add("filled");
+        prev = prev.previousElementSibling;
+      }
+    });
+
+    star.addEventListener("mouseout", () => {
+      star.classList.remove("filled");
+      let prev = star.previousElementSibling;
+      while (prev) {
+        prev.classList.remove("filled");
+        prev = prev.previousElementSibling;
+      }
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "user/base.html" %} {% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4 text-center library-title">Thư viện sách</h2>
+
+  <div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for book in books %}
+    <div class="col">
+      <div class="card h-100 shadow-sm book-card">
+        <!-- Ảnh bìa sách -->
+        <a href="{{ url_for('user.book_detail', book_id=book.book_id) }}">
+          {% if book.cover_url %}
+          <img
+            src="{{ url_for('static', filename=book.cover_url) }}"
+            alt="{{ book.title }}"
+            class="card-img-top book-cover"
+          />
+          {% else %}
+          <img
+            src="https://via.placeholder.com/200x300?text=No+Cover"
+            alt="{{ book.title }}"
+            class="card-img-top book-cover"
+          />
+          {% endif %}
+        </a>
+        <!-- Thông tin sách -->
+        <div class="card-body">
+          <h5 class="card-title">
+            <a
+              href="{{ url_for('user.book_detail', book_id=book.book_id) }}"
+              class="text-decoration-none book-title"
+            >
+              {{ book.title }}
+            </a>
+          </h5>
+          <p class="card-text text-muted mb-1">
+            <strong>Tác giả:</strong> {{ book.author_name or 'N/A' }}
+          </p>
+          <p class="card-text text-muted mb-1">
+            <strong>Thể loại:</strong> {{ book.category_names | default('N/A')
+            }}
+          </p>
+          <p class="card-text text-muted mb-1">
+            <strong>Lần đọc cuối:</strong>
+            {% if book.last_read %} {{ book.last_read.strftime('%d/%m/%Y') }} {%
+            else %} Chưa đọc {% endif %}
+          </p>
+          <!-- Thanh tiến trình đọc -->
+          {% if book.last_position and book.last_position > 0 %}
+          <div class="progress-container mt-2">
+            <label class="form-label small"
+              >Tiến trình: {{ book.last_position }}%</label
+            >
+            <div class="progress">
+              <div
+                class="progress-bar"
+                role="progressbar"
+                aria-valuenow="{{ book.last_position }}"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              ></div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        <!-- Nút hành động -->
+        <div class="card-footer bg-transparent border-0">
+          <div class="action-buttons">
+            <a
+              href="{{ url_for('user.read_book', book_id=book.book_id) }}"
+              class="btn btn-sm btn-read-from-start"
+            >
+              <i class="fas fa-book-open"></i> Đọc từ đầu
+            </a>
+            {% if book.last_position and book.last_position > 0 %}
+            <a
+              href="{{ url_for('user.read_from_position', book_id=book.book_id, position=book.last_position) }}"
+              class="btn btn-sm btn-continue"
+            >
+              <i class="fas fa-forward"></i> Đọc tiếp
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center text-muted">
+      <p>Không tìm thấy sách phù hợp</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Tài nguyên bổ sung -->
+<link
+  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+  rel="stylesheet"
+/>
+<link
+  href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
+  rel="stylesheet"
+/>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}

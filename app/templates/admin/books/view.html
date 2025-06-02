@@ -1,0 +1,52 @@
+{% extends "admin/base.html" %} {% block title %}Chi tiết sách{% endblock %} {%
+block content %}
+<div class="card mb-4">
+  <div class="row g-0">
+    <div class="col-md-4 text-center p-3">
+      {% if book.cover_url %}
+      <img
+        src="{{ url_for('static', filename=book.cover_url) }}"
+        alt="Ảnh bìa sách"
+        class="img-fluid rounded"
+        style="max-height: 400px"
+      />
+      {% else %}
+      <div class="text-muted">Không có ảnh bìa</div>
+      {% endif %}
+    </div>
+    <div class="col-md-8">
+      <div class="card-body">
+        <h3 class="card-title">{{ book.title }}</h3>
+        <p><strong>Tác giả:</strong> {{ book.author_name }}</p>
+        <p><strong>Thể loại:</strong> {{ book.category_name }}</p>
+
+        <p>
+          <strong>Năm xuất bản:</strong>{% if book.published_year %} {{
+          book.published_year }} {% else %} Không có thông tin.{% endif %}
+        </p>
+
+        <p><strong>Mô tả:</strong> {{ book.description }}</p>
+        {% if book.file_url %}
+        <p>
+          <strong>Tệp sách:</strong>
+          <a
+            href="{{ url_for('admin.serve_uploaded_files', subfolder='books', filename=book.file_url.split('/')[-1]) }}"
+            class="btn btn-sm btn-outline-primary"
+            target="_blank"
+          >
+            <i class="fas fa-file-download"></i> Tải xuống
+          </a>
+        </p>
+        {% else %}
+        <p><strong>Tệp sách:</strong> Không có</p>
+        {% endif %}
+        <a
+          href="{{ url_for('admin.book_list') }}"
+          class="btn btn-secondary mt-3"
+          >Quay lại danh sách</a
+        >
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

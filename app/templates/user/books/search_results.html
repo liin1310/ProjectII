@@ -1,0 +1,152 @@
+{% extends "user/base.html" %} {% block content %}
+<div class="container mt-5">
+  <!-- Tiêu đề và thông tin tìm kiếm -->
+  <h2 class="mb-4 text-center library-title">
+    Kết quả tìm kiếm {% if keyword or current_category %}
+    <small class="d-block text-muted mt-2">
+      {% if keyword %} Từ khóa: <strong>{{ keyword }}</strong> {% endif %} {% if
+      current_category %} {% if keyword %} | {% endif %} Thể loại:
+      <strong>{{ current_category.name }}</strong>
+      {% endif %}
+    </small>
+    {% endif %}
+  </h2>
+
+  <!-- Danh sách sách -->
+  <div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for book in books %}
+    <div class="col">
+      <div class="card h-100 shadow-sm book-card">
+        <!-- Ảnh bìa sách -->
+        <a href="{{ url_for('user.book_detail', book_id=book.book_id) }}">
+          {% if book.cover_url %}
+          <img
+            src="{{ url_for('static', filename=book.cover_url) }}"
+            alt="{{ book.title }}"
+            class="card-img-top book-cover"
+          />
+          {% else %}
+          <img
+            src="https://via.placeholder.com/200x300?text=No+Cover"
+            alt="{{ book.title }}"
+            class="card-img-top book-cover"
+          />
+          {% endif %}
+        </a>
+        <!-- Thông tin sách -->
+        <div class="card-body">
+          <h5 class="card-title">
+            <a
+              href="{{ url_for('user.book_detail', book_id=book.book_id) }}"
+              class="text-decoration-none book-title"
+            >
+              {{ book.title }}
+            </a>
+          </h5>
+          <p class="card-text text-muted mb-1">
+            <strong>Tác giả:</strong> {{ book.author_name or 'N/A' }}
+          </p>
+          <p class="card-text text-muted mb-1">
+            <strong>Thể loại:</strong> {{ book.category_names | default('N/A')
+            }}
+          </p>
+          <!-- Thanh tiến trình đọc -->
+          {% if book.last_position and book.last_position > 0 %}
+          <div class="progress-container mt-2">
+            <label class="form-label small"
+              >Tiến trình: {{ book.last_position }}%</label
+            >
+            <div class="progress">
+              <div
+                class="progress-bar"
+                role="progressbar"
+                aria-valuenow="{{ book.last_position }}"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              ></div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        <!-- Nút hành động -->
+        <div class="card-footer bg-transparent border-0">
+          <div class="action-buttons">
+            <a
+              href="{{ url_for('user.read_book', book_id=book.book_id) }}"
+              class="btn btn-sm btn-read-from-start"
+            >
+              <i class="fas fa-book-open"></i> Đọc từ đầu
+            </a>
+            {% if book.last_position and book.last_position > 0 %}
+            <a
+              href="{{ url_for('user.read_from_position', book_id=book.book_id, position=book.last_position) }}"
+              class="btn btn-sm btn-continue"
+            >
+              <i class="fas fa-forward"></i> Đọc tiếp
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center text-muted">
+      <p>Không tìm thấy sách phù hợp</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Phân trang -->
+  {% if total_pages > 1 %}
+  <nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center">
+      <!-- Trang trước -->
+      <li class="page-item {% if page == 1 %}disabled{% endif %}">
+        <a
+          class="page-link"
+          href="{{ url_for('user.search', category_id=category_id, keyword=keyword, page=page-1) }}"
+          aria-label="Previous"
+        >
+          <span aria-hidden="true">«</span>
+        </a>
+      </li>
+      <!-- Các trang -->
+      {% for p in range(1, total_pages + 1) %}
+      <li class="page-item {% if p == page %}active{% endif %}">
+        <a
+          class="page-link"
+          href="{{ url_for('user.search', category_id=category_id, keyword=keyword, page=p) }}"
+        >
+          {{ p }}
+        </a>
+      </li>
+      {% endfor %}
+      <!-- Trang sau -->
+      <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+        <a
+          class="page-link"
+          href="{{ url_for('user.search', category_id=category_id, keyword=keyword, page=page+1) }}"
+          aria-label="Next"
+        >
+          <span aria-hidden="true">»</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+  <p class="text-center text-muted small">
+    Tổng cộng: {{ total_books }} sách | Trang {{ page }} / {{ total_pages }}
+  </p>
+  {% endif %}
+</div>
+
+<!-- Tài nguyên bổ sung -->
+<link
+  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+  rel="stylesheet"
+/>
+<link
+  href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
+  rel="stylesheet"
+/>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}

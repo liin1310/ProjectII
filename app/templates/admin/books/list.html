@@ -1,0 +1,113 @@
+{% extends "admin/base.html" %} 
+{% block title %}Quản lý sách{% endblock %} 
+{% block content %}
+<div class="d-flex justify-content-between mb-3">
+  <h2>Danh sách sách</h2>
+  <a href="{{ url_for('admin.add_book') }}" class="btn btn-success">
+    <i class="fas fa-plus"></i> Thêm sách
+  </a>
+</div>
+
+<!-- Thêm form tìm kiếm -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="GET" action="{{ url_for('admin.book_list') }}" class="row g-3">
+      <div class="col-md-4">
+        <input 
+          type="text" 
+          name="q" 
+          class="form-control" 
+          placeholder="Tìm theo tên sách, tác giả..." 
+          value="{{ request.args.get('q', '') }}"
+        >
+      </div>
+      <div class="col-md-3">
+        <select name="category" class="form-select">
+          <option value="">-- Tất cả danh mục --</option>
+          {% for category in categories %}
+          <option 
+            value="{{ category.category_id }}"
+            {% if request.args.get('category') | string == category.category_id|string %}selected{% endif %}
+          >
+            {{ category.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-search"></i> Tìm kiếm
+        </button>
+        {% if request.args.get('q') or request.args.get('category') %}
+        <a href="{{ url_for('admin.book_list') }}" class="btn btn-outline-secondary ms-2">
+          <i class="fas fa-times"></i> Xóa
+        </a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-striped table-hover">
+    <thead class="table-dark">
+      <tr>
+        <th>ID</th>
+        <th>Bìa</th>
+        <th>Tên sách</th>
+        <th>Tác giả</th>
+        <th>Danh mục</th>
+        <th>Năm XB</th>
+        <th>Thao tác</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for book in books %}
+      <tr>
+        <td> <a href="{{ url_for('admin.view_book', book_id=book.book_id) }}"  title = "Xem chi tiết">{{ book.book_id }}</a></td>
+        <td>
+         
+          {% if book.cover_url %}
+          <img src="{{ url_for('static', filename=book.cover_url) }}" alt="Cover" style="
+              height: 80px; 
+              width: 60px;  
+              object-fit: cover; 
+              display: block;  
+              margin: 0 auto;
+              " />
+          {% else %}
+          <span class="text-muted">No cover</span>
+          {% endif %}
+        </td>
+        <td><a href="{{ url_for('admin.view_book', book_id=book.book_id) }}"  title = "Xem chi tiết">{{ book.title }}</a></td>
+        <td>{{ book.author_name or 'N/A' }}</td>
+        <td>{{ book.category_names or 'N/A' }}</td>
+        <td>{{ book.published_year or 'N/A' }}</td>
+        <td>
+          <a
+            href="{{ url_for('admin.edit_book', book_id=book.book_id) }}"
+            class="btn btn-sm btn-primary"
+          >
+            <i class="fas fa-edit"></i>
+          </a>
+          <form
+            method="POST"
+            action="{{ url_for('admin.delete_book', book_id=book.book_id) }}"
+            style="display: inline"
+            onsubmit="return confirm('Xóa sách này?');"
+          >
+            <button type="submit" class="btn btn-sm btn-danger">
+              <i class="fas fa-trash"></i>
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="text-center text-muted">Không tìm thấy sách phù hợp</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
