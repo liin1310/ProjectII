@@ -81,7 +81,7 @@ block content %}
 </div>
 
 <!-- Thêm CSS để danh sách checkbox hiển thị đẹp hơn -->
-<style>
+<!-- <style>
   .category-checkboxes {
     max-height: 150px; /* Giới hạn chiều cao */
     overflow-y: auto; /* Thêm thanh cuộn nếu danh sách dài */
@@ -92,16 +92,6 @@ block content %}
   .form-check {
     margin-bottom: 5px;
   }
-</style>
-<script>
-  document.querySelector("form").addEventListener("submit", function (e) {
-    const checkboxes = document.querySelectorAll(
-      'input[name="category_id"]:checked'
-    );
-    if (checkboxes.length === 0) {
-      e.preventDefault();
-      alert("Vui lòng chọn ít nhất một danh mục!");
-    }
-  });
-</script>
+</style> -->
+
 {% endblock %}

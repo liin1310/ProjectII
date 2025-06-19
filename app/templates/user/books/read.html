@@ -1,27 +1,14 @@
-{% extends "user/base.html" %} {% block head %}
-<!-- Thêm Font Awesome CDN -->
-<link
-  rel="stylesheet"
-  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-  integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw=="
-  crossorigin="anonymous"
-  referrerpolicy="no-referrer"
-/>
-{% endblock %} 
-{% block content %}
-
+{% extends "user/base.html" %} {% block head %} {% endblock %} {% block content
+%}
 <div class="container-fluid mt-4">
   <div class="row">
     <!-- Sidebar với thông tin sách -->
     <div class="col-md-3">
-      <div class="sticky-top pt-3">
+      <div class="pt-3">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">{{ book.title }}</h5>
             <div class="d-grid gap-2">
-              <button class="btn btn-outline-primary" id="save-position">
-                <i class="fas fa-bookmark"></i> Lưu vị trí
-              </button>
               <a
                 href="{{ url_for('user.book_detail', book_id=book.book_id) }}"
                 class="btn btn-back"
@@ -40,7 +27,7 @@
       <div
         id="book-content"
         data-book-id="{{ book.book_id }}"
-        data-start-page="{{ start_page }}"
+        data-start-page="{{ start_position }}"
       >
         {% if book.file_url %}
         <div class="text-center py-5" id="loading">
@@ -76,21 +63,23 @@
 {% if book.file_url %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.min.js"></script>
 <script>
+  // Cấu hình worker cho PDF.js
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.worker.min.js";
 
   document.addEventListener("DOMContentLoaded", function () {
+    // Khởi tạo biến từ DOM
     const bookContent = document.getElementById("book-content");
     const bookId = bookContent.dataset.bookId;
-    const startPage = parseInt(bookContent.dataset.startPage) || 1;
+    const startPage = parseInt(bookContent.dataset.startPage);
     const canvas = document.getElementById("pdf-canvas");
     const context = canvas.getContext("2d");
     let pdfDoc = null;
-    let currentPage = startPage;
+    let currentPage = startPage > 0 ? startPage : 1; // Đặt trang bắt đầu, mặc định là 1 nếu startPage không hợp lệ
     let totalPages = 0;
     let scale = 1.0;
 
-    // Hàm hiển thị toast
+    // Hàm hiển thị toast thông báo
     function showToast(message) {
       const toast = document.getElementById("toast");
       toast.textContent = message;
@@ -102,26 +91,30 @@
 
     // Hàm lưu vị trí đọc
     function saveReadingPosition() {
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", "{{ url_for('user.update_reading_position') }}", false); // Synchronous
-      xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
-      try {
-        xhr.send(
-          JSON.stringify({
-            book_id: bookId,
-            page: currentPage,
-          })
-        );
-        const response = JSON.parse(xhr.responseText);
-        if (!response.success) {
-          console.error("Lỗi khi lưu vị trí: ", response.error);
-          showToast("Lỗi lưu vị trí: " + response.error);
-        }
-      } catch (error) {
-        console.error("Lỗi khi lưu vị trí: ", error.message);
-        showToast("Lỗi lưu vị trí: " + error.message);
-      }
+      fetch("{{ url_for('user.update_reading_position') }}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}",
+        },
+        body: JSON.stringify({
+          book_id: bookId,
+          page: currentPage,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            showToast("Đã lưu vị trí đọc!");
+          } else {
+            console.error("Lỗi khi lưu vị trí: ", data.error);
+            showToast("Lỗi lưu vị trí: " + data.error);
+          }
+        })
+        .catch((error) => {
+          console.error("Lỗi khi lưu vị trí: ", error.message);
+          showToast("Lỗi lưu vị trí: " + error.message);
+        });
     }
 
     // Tải PDF
@@ -133,7 +126,7 @@
         pdfDoc = pdf;
         totalPages = pdfDoc.numPages;
         document.getElementById("total-pages").textContent = totalPages;
-        if (currentPage > totalPages) currentPage = 1;
+        if (currentPage > totalPages) currentPage = 1; // Đảm bảo không vượt quá số trang
         document.getElementById("loading").style.display = "none";
         renderPage(currentPage);
       })
@@ -159,47 +152,24 @@
       });
     }
 
-    // Điều hướng trang
+    // Điều hướng trang trước
     document.getElementById("prev-page").addEventListener("click", () => {
       if (currentPage > 1) {
         currentPage--;
         renderPage(currentPage);
-        saveReadingPosition(); // Lưu khi chuyển trang
+        saveReadingPosition();
+        window.scrollTo(0, 0); // Cuộn lên đầu trang
       }
     });
 
+    // Điều hướng trang sau
     document.getElementById("next-page").addEventListener("click", () => {
       if (currentPage < totalPages) {
         currentPage++;
         renderPage(currentPage);
-        saveReadingPosition(); // Lưu khi chuyển trang
+        saveReadingPosition();
+        window.scrollTo(0, 0); // Cuộn lên đầu trang
       }
-    });
-
-    // Lưu vị trí khi nhấn nút "Lưu vị trí"
-    document.getElementById("save-position").addEventListener("click", () => {
-      fetch("{{ url_for('user.update_reading_position') }}", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": "{{ csrf_token }}",
-        },
-        body: JSON.stringify({
-          book_id: bookId,
-          page: currentPage,
-        }),
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.success) {
-            showToast("Đã lưu vị trí đọc!");
-          } else {
-            showToast("Lỗi lưu vị trí: " + data.error);
-          }
-        })
-        .catch((error) => {
-          showToast("Lỗi lưu vị trí: " + error.message);
-        });
     });
 
     // Lưu vị trí khi nhấn nút "Thông tin sách"
@@ -210,7 +180,8 @@
         saveReadingPosition();
         setTimeout(() => {
           window.location.href = event.target.href;
-        }, 200); // Tăng delay lên 200ms
+          window.scrollTo(0, 0); // Cuộn lên đầu trang khi chuyển hướng
+        }, 200);
       });
 
     // Lưu vị trí khi thoát trang

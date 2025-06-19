@@ -1,23 +1,30 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
-import mysql.connector  
-from config import DB_CONFIG
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import logging
 import secrets
+from config import DB_CONFIG
+from app.models import Base, Users, Books, Authors, Categories, ReadingHistory, Ratings, t_book_categories
+from sqlalchemy import create_engine, or_, func, and_, desc
+from sqlalchemy.orm import Session, aliased
+from datetime import datetime
 
 user_bp = Blueprint('user', __name__)
-
+RatingsAlias = aliased(Ratings)
 # Tạo logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO) 
+logger.setLevel(logging.INFO)
+
+# Tạo engine và session cho SQLAlchemy
+engine = create_engine(f"mysql+pymysql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}/{DB_CONFIG['database']}")
+Base.metadata.create_all(engine)
 
 # Yêu cầu đăng nhập
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            flash('Vui lòng đăng nhập.', 'error')
+        if 'user_id' not in session or session.get('role') == 'admin':
+            flash('Vui lòng đăng nhập.', 'danger')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -27,10 +34,13 @@ def check_csrf_token(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if request.method == 'POST':
-            if request.headers.get('X-CSRFToken') != session.get('csrf_token'):
+            token = session.get('csrf_token')
+            form_token = request.form.get('csrf_token')
+            header_token = request.headers.get('X-CSRFToken')
+            if not token or (token != form_token and token != header_token):
                 if request.is_json:
                     return jsonify({'success': False, 'error': 'CSRF token không hợp lệ'})
-                flash('CSRF token không hợp lệ', 'error')
+                flash('CSRF token không hợp lệ', 'danger')
                 return redirect(request.url)
         return f(*args, **kwargs)
     return decorated_function
@@ -45,486 +55,659 @@ def generate_csrf_token():
     if 'csrf_token' not in session:
         session['csrf_token'] = secrets.token_hex(16)
 
-# Quản lý tài khoản
-    # Xem thông tin
+@user_bp.route('/')
+@login_required
+def home():
+
+    try:
+        with Session(engine) as db_session:
+            # Sách có điểm đánh giá trung bình cao nhất
+            featured_books_query = (
+                db_session.query(
+                    Books.book_id,
+                    Books.title,
+                    Books.cover_url,
+                    Authors.name.label("author_name"),
+                    func.avg(Ratings.rating).label("avg_rating")
+                )
+                .join(Ratings, Ratings.book_id == Books.book_id)
+                .outerjoin(Authors, Books.author_id == Authors.author_id)
+                .group_by(Books.book_id)
+                .order_by(func.avg(Ratings.rating).desc())
+                .limit(4)
+                .all()
+            )
+
+            featured_books = [
+                {
+                    "book_id": book.book_id,
+                    "title": book.title,
+                    "cover_url": book.cover_url,
+                    "author_name": book.author_name,
+                    "avg_rating": round(book.avg_rating, 1) if book.avg_rating else None
+                }
+                for book in featured_books_query
+            ]
+
+            # Sách mới cập nhật
+            latest_books_query = (
+                db_session.query(
+                    Books.book_id,
+                    Books.title,
+                    Books.cover_url,
+                    Books.published_year,
+                    func.group_concat(Categories.name).label("category_name")
+                )
+                .outerjoin(t_book_categories, Books.book_id == t_book_categories.c.book_id)
+                .outerjoin(Categories, t_book_categories.c.category_id == Categories.category_id)
+                .group_by(Books.book_id)
+                .order_by(Books.created_at.desc())
+                .limit(4)
+                .all()
+            )
+
+            books = [
+                {
+                    "book_id": b.book_id,
+                    "title": b.title,
+                    "cover_url": b.cover_url,
+                    "published_year": b.published_year,
+                    "category_name": b.category_name
+                }
+                for b in latest_books_query
+            ]
+
+            # Sách có lượt đọc nhiều nhất
+            most_read_books_query = (
+                db_session.query(
+                    Books.book_id,
+                    Books.title,
+                    Books.cover_url,
+                    Authors.name.label("author_name"),
+                    func.count(ReadingHistory.user_id).label("read_count")
+                )
+                .join(ReadingHistory, ReadingHistory.book_id == Books.book_id)
+                .outerjoin(Authors, Books.author_id == Authors.author_id)
+                .group_by(Books.book_id)
+                .order_by(func.count(ReadingHistory.user_id).desc())
+                .limit(4)
+                .all()
+            )
+
+            most_read_books = [
+                {
+                    "book_id": book.book_id,
+                    "title": book.title,
+                    "cover_url": book.cover_url,
+                    "author_name": book.author_name,
+                    "read_count": book.read_count
+                }
+                for book in most_read_books_query
+            ]
+            return render_template(
+                "user/index.html",
+                featured_books=featured_books,
+                books=books,
+                most_read_books=most_read_books
+            )
+
+    except Exception as e:
+        logger.error(f"Lỗi khi hiển thị trang chủ: {str(e)}", exc_info=True)
+        flash("Không thể tải trang chủ", "danger")
+        return redirect(url_for('user.home'))
+
+
+# /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+# ////////////////////////////////       Quản lý tài khoản          ///////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+# Xem thông tin
 @user_bp.route('/profile')
 @login_required
 def profile():
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM users WHERE user_id = %s", (session['user_id'],))
-        user = cursor.fetchone()
-        return render_template('user/profile/profile.html', user=user)
+        with Session(engine) as db_session:
+            user = db_session.query(Users).filter(Users.user_id == session['user_id']).first()
+            if not user:
+                flash('Không tìm thấy thông tin người dùng', 'danger')
+                return redirect(url_for('auth.login'))
+            return render_template('user/profile/profile.html', user=user, csrf_token=session.get('csrf_token'))
     except Exception as e:
         logger.error(f"Profile error: {str(e)}", exc_info=True)
-        flash('Lỗi khi tải thông tin người dùng', 'error')
+        flash('Lỗi khi tải thông tin người dùng', 'danger')
         return redirect(url_for('auth.login'))
-    finally:
-        if cursor: cursor.close()
-        if conn: conn.close()
 
-    # Cập nhật thông tin
+# Cập nhật thông tin
 @user_bp.route('/updateProfile', methods=['GET', 'POST'])
 @login_required
 @check_csrf_token
 def updateProfile():
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
+        with Session(engine) as db_session:
+            user = db_session.query(Users).filter(Users.user_id == session['user_id']).first()
+            if not user:
+                flash('Không tìm thấy thông tin người dùng', 'danger')
+                return redirect(url_for('auth.login'))
 
-        if request.method == 'POST':
-            fullname = request.form.get('fullname', '').strip()
-            username = request.form.get('username', '').strip()
-            email = request.form.get('email', '').strip().lower()
-            age = int(request.form['age'])
+            if request.method == 'POST':
+                fullname = request.form.get('fullname', '').strip()
+                username = request.form.get('username', '').strip()
+                email = request.form.get('email', '').strip().lower()
+                age_str = request.form.get('age', '').strip()
 
-            # Kiểm tra email trùng
-            cursor.execute("""
-                SELECT user_id FROM users 
-                WHERE email = %s AND user_id != %s
-            """, (email, session['user_id']))
-            if cursor.fetchone():
-                flash('Email đã được sử dụng bởi tài khoản khác!', 'error')
-                user = {'fullname': fullname, 'username': username, 'age': age, 'email': email}
-                return render_template('user/profile/updateProfile.html', user=user)
+                # Kiểm tra dữ liệu đầu vào
+                if not all([fullname, username, email]):
+                    flash('Vui lòng điền đầy đủ các trường bắt buộc', 'danger')
+                    user_dict = {'fullname': fullname, 'username': username, 'email': email, 'age': age_str}
+                    return render_template('user/profile/updateProfile.html', user=user_dict, csrf_token=session.get('csrf_token'))
 
-            cursor.execute("""
-                UPDATE users 
-                SET fullname = %s, age = %s, email = %s, username = %s
-                WHERE user_id = %s
-            """, (fullname, age, email, username, session['user_id']))
-            conn.commit()
+                # Kiểm tra và chuyển đổi tuổi
+                try:
+                    age = int(age_str) if age_str else None
+                    if age is not None and (age < 0 or age > 150):
+                        raise ValueError('Tuổi không hợp lệ')
+                except ValueError:
+                    flash('Tuổi phải là một số hợp lệ', 'danger')
+                    user_dict = {'fullname': fullname, 'username': username, 'email': email, 'age': age_str}
+                    return render_template('user/profile/updateProfile.html', user=user_dict, csrf_token=session.get('csrf_token'))
 
-            flash('Cập nhật thông tin thành công!', 'success')
-            refresh_csrf_token()
-            return redirect(url_for('user.profile'))
+                # Kiểm tra email trùng
+                existing_user = db_session.query(Users).filter(
+                    Users.email == email,
+                    Users.user_id != session['user_id']
+                ).first()
+                if existing_user:
+                    flash('Email đã được sử dụng bởi tài khoản khác!', 'danger')
+                    user_dict = {'fullname': fullname, 'username': username, 'email': email, 'age': age}
+                    return render_template('user/profile/updateProfile.html', user=user_dict, csrf_token=session.get('csrf_token'))
 
-        else:
-            cursor.execute("SELECT * FROM users WHERE user_id = %s", (session['user_id'],))
-            user = cursor.fetchone()
-            return render_template('user/profile/updateProfile.html', user=user)
+                # Kiểm tra xem trùng username không
+                existing_username = db_session.query(Users).filter(
+                    Users.username == username,
+                    Users.user_id != session['user_id']
+                ).first()
+                if existing_username:
+                    flash('Username đã được sử dụng bởi tài khoản khác!', 'danger')
+                    user_dict = {'fullname': fullname, 'username': username, 'email': email, 'age': age}
+                    return render_template('user/profile/updateProfile.html', user=user_dict, csrf_token=session.get('csrf_token'))
+                # Cập nhật thông tin
+                user.fullname = fullname
+                user.username = username
+                user.email = email
+                user.age = age
+                db_session.commit()
 
-    except mysql.connector.Error as err:
-        if conn:
-            conn.rollback()
-        flash(f'Lỗi cơ sở dữ liệu: {err}', 'error')
-        return render_template('user/profile/updateProfile.html', user={})
+                flash('Cập nhật thông tin thành công!', 'success')
+                return redirect(url_for('user.profile'))
 
-    except Exception as err:
-        flash(f'Lỗi hệ thống: {err}', 'error')
-        return render_template('user/profile/updateProfile.html', user={})
+            # GET request
+            user_dict = {
+                'fullname': user.fullname,
+                'username': user.username,
+                'email': user.email,
+                'age': user.age if user.age is not None else ''
+            }
+            return render_template('user/profile/updateProfile.html', user=user_dict, csrf_token=session.get('csrf_token'))
 
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+    except Exception as e:
+        logger.error(f"Update profile error: {str(e)}", exc_info=True)
+        flash('Lỗi hệ thống, vui lòng thử lại', 'danger')
+        user_dict = {
+            'fullname': request.form.get('fullname', ''),
+            'username': request.form.get('username', ''),
+            'email': request.form.get('email', ''),
+            'age': request.form.get('age', '')
+        }
+        return render_template('user/profile/updateProfile.html', user=user_dict, csrf_token=session.get('csrf_token'))
 
-    # Thay đổi mật khẩu
+# Thay đổi mật khẩu
 @user_bp.route('/changePassword', methods=['GET', 'POST'])
 @login_required
+@check_csrf_token
 def changePassword():
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
+        with Session(engine) as db_session:
+            if request.method == 'POST':
+                old_password = request.form.get('old_password', '').strip()
+                new_password = request.form.get('new_password', '').strip()
+                confirm_password = request.form.get('confirm_password', '').strip()
 
-        if request.method == 'POST':
-            old_password = request.form['old_password']
-            new_password = request.form['new_password']
-            # Kiểm tra độ dài new_password
-            if len(new_password) < 6:
-                flash("Mật khẩu dài ít nhất 6 kí tự", "error")
-                return redirect(url_for('user.changePassword'))
-            # Kiểm tra confirm_password có khác new_password không
-            if new_password != request.form['confirm_password']:
-                flash("Mật khẩu xác nhận không khớp", "error")
-                return redirect(url_for('user.changePassword'))
-            # Kiểm tra password có trùng với new_password không
-            if new_password == old_password:
-                flash("Mật khẩu mới không được trùng với mật khẩu cũ!", "error")
-                return redirect(url_for('user.changePassword'))
-            
-            user_id = int(session['user_id'])
-            # Kiểm tra nhập mật khẩu cũ đúng chưa
-            cursor.execute("SELECT user_id, email, password FROM users WHERE user_id = %s", (user_id,))
-            user = cursor.fetchone()
-            if not check_password_hash(user['password'], old_password):
-                flash("Mật khẩu không chính xác", "error")
-                return redirect(url_for('user.changePassword'))
-            # Cập nhật thông tin
-            hashed_password = generate_password_hash(new_password)
-            cursor.execute("""
-                UPDATE users 
-                SET password = %s
-                WHERE user_id = %s
-            """, (hashed_password, user_id))
-            conn.commit()
+                # Kiểm tra dữ liệu đầu vào
+                if not all([old_password, new_password, confirm_password]):
+                    flash('Vui lòng điền đầy đủ các trường', 'danger')
+                    return render_template('user/profile/changePassword.html', csrf_token=session.get('csrf_token'))
 
-            flash('Cập nhật mật khẩu thành công! Vui lòng đăng nhập lại.', 'success')
-            session.clear()
-            refresh_csrf_token()
-            return redirect(url_for('auth.login'))
-        else:
-            return render_template("user/profile/changePassword.html")
-        
-    except mysql.connector.Error as err:
-        if conn:
-            conn.rollback()
-        flash(f'Lỗi cơ sở dữ liệu: {err}', 'error')
-        return render_template('user/profile/changePassword.html', user={})
+                # Kiểm tra độ dài mật khẩu
+                if len(new_password) < 6:
+                    flash('Mật khẩu mới phải dài ít nhất 6 ký tự', 'danger')
+                    return render_template('user/profile/changePassword.html', csrf_token=session.get('csrf_token'))
 
-    except Exception as err:
-        flash(f'Lỗi hệ thống: {err}', 'error')
-        return render_template('user/profile/changePassword.html', user={})
+                # Kiểm tra mật khẩu xác nhận
+                if new_password != confirm_password:
+                    flash('Mật khẩu xác nhận không khớp', 'danger')
+                    return render_template('user/profile/changePassword.html', csrf_token=session.get('csrf_token'))
 
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+                # Kiểm tra mật khẩu mới trùng mật khẩu cũ
+                if new_password == old_password:
+                    flash('Mật khẩu mới không được trùng với mật khẩu cũ!', 'danger')
+                    return render_template('user/profile/changePassword.html', csrf_token=session.get('csrf_token'))
 
-#----------------------------------------------------------------------------------------------------------------------------------
+                user = db_session.query(Users).filter(Users.user_id == session['user_id']).first()
+                if not user:
+                    flash('Không tìm thấy thông tin người dùng', 'danger')
+                    return redirect(url_for('auth.login'))
+
+                # Kiểm tra mật khẩu cũ
+                if not check_password_hash(user.password, old_password):
+                    flash('Mật khẩu cũ không chính xác', 'danger')
+                    return render_template('user/profile/changePassword.html', csrf_token=session.get('csrf_token'))
+
+                # Cập nhật mật khẩu mới
+                user.password = generate_password_hash(new_password)
+                db_session.commit()
+
+                flash('Cập nhật mật khẩu thành công! Vui lòng đăng nhập lại.', 'success')
+                session.clear()
+                session['csrf_token'] = secrets.token_hex(16)  # Tạo token mới sau khi xóa session
+                return redirect(url_for('auth.login'))
+
+            return render_template('user/profile/changePassword.html', csrf_token=session.get('csrf_token'))
+
+    except Exception as e:
+        logger.error(f"Change password error: {e}", exc_info=True)
+        flash('Lỗi hệ thống, vui lòng thử lại', 'danger')
+        return render_template('user/profile/changePassword.html', csrf_token=session.get('csrf_token'))
 
 @user_bp.app_context_processor
 def inject_categories():
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT category_id, name FROM categories ORDER BY name")
-        categories = cursor.fetchall()
-        return {'categories': categories}
+        with Session(engine) as db_session:
+            categories = db_session.query(Categories).order_by(Categories.name).all()
+            return {'categories': categories}
     except Exception as e:
-        logger.error(f"Error loading categories: {str(e)}", exc_info=True)
-        return {'categories': []}
-    finally:
-        if 'cursor' in locals(): cursor.close()
-        if 'conn' in locals(): conn.close()
+            logger.error(f"Error loading categories: {str(e)}", exc_info=True)
+            return {'categories': []}
 
 # Xem danh sách sách
 @user_bp.route('/library')
 @login_required
 def library():
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-        
-        cursor.execute("""
-            SELECT b.book_id, b.title, b.cover_url, 
-                   a.name AS author_name, 
-                   GROUP_CONCAT(c.name SEPARATOR ', ') AS category_names,
-                   rh.last_position,
-                   rh.last_read_at AS last_read
-            FROM books b
-            LEFT JOIN authors a ON b.author_id = a.author_id
-            LEFT JOIN book_categories bc ON b.book_id = bc.book_id
-            LEFT JOIN categories c ON bc.category_id = c.category_id
-            LEFT JOIN (
-                SELECT book_id, user_id, last_position, last_read_at
-                FROM reading_history
-                WHERE user_id = %s
-                AND last_read_at = (
-                    SELECT MAX(last_read_at)
-                    FROM reading_history rh2
-                    WHERE rh2.book_id = reading_history.book_id
-                    AND rh2.user_id = %s
+        with Session(engine) as db_session:
+            # Subquery để lấy lịch sử đọc gần nhất
+            subquery = (
+                db_session.query(
+                    ReadingHistory.book_id,
+                    ReadingHistory.user_id,
+                    ReadingHistory.last_position,
+                    ReadingHistory.last_read_at
                 )
-            ) rh ON b.book_id = rh.book_id
-            GROUP BY b.book_id, a.name, rh.last_position, rh.last_read_at
-        """, (session['user_id'], session['user_id']))
-        
-        books = cursor.fetchall()
-        logger.info(f"Rendering library for user_id: {session['user_id']}")
-        return render_template('user/books/library.html', books=books)
-        
+                .filter(ReadingHistory.user_id == session['user_id'])
+                .filter(
+                    ReadingHistory.last_read_at == db_session.query(
+                        func.max(ReadingHistory.last_read_at)
+                    )
+                    .filter(ReadingHistory.user_id == session['user_id'])
+                    .correlate(ReadingHistory)
+                    .scalar_subquery()
+                )
+                .subquery()
+            )
+
+            # Truy vấn chính
+            books_query = (
+                db_session.query(
+                    Books.book_id,
+                    Books.title,
+                    Books.cover_url,
+                    Authors.name.label('author_name'),
+                    func.group_concat(Categories.name).label('category_names'),
+                    subquery.c.last_position,
+                    subquery.c.last_read_at.label('last_read')
+                )
+                .outerjoin(Authors, Books.author_id == Authors.author_id)
+                .outerjoin(t_book_categories, Books.book_id == t_book_categories.c.book_id)
+                .outerjoin(Categories, t_book_categories.c.category_id == Categories.category_id)
+                .join(subquery, Books.book_id == subquery.c.book_id)
+                .group_by(Books.book_id, Authors.name, subquery.c.last_position, subquery.c.last_read_at)
+            )
+
+            books = [
+                {
+                    'book_id': book_id,
+                    'title': title,
+                    'cover_url': cover_url,
+                    'author_name': author_name,
+                    'category_names': category_names.replace(',', ', ') if category_names else '',
+                    'last_position': last_position,
+                    'last_read': last_read
+                }
+                for book_id, title, cover_url, author_name, category_names, last_position, last_read in books_query.all()
+            ]
+
+            logger.info(f"Rendering library for user_id: {session['user_id']}")
+            return render_template('user/books/library.html', books=books, csrf_token=session.get('csrf_token'))
+
     except Exception as e:
         logger.error(f"Library error: {str(e)}", exc_info=True)
-        flash('Lỗi khi tải thư viện sách', 'error')
+        flash('Lỗi khi tải thư viện sách', 'danger')
         return redirect(url_for('auth.index'))
-    finally:
-        if cursor: cursor.close()
-        if conn: conn.close()
 
-# Xem chi tiết sách
 @user_bp.route('/book/<int:book_id>')
 @login_required
 def book_detail(book_id):
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
+        with Session(engine) as db_session:
+            # Subquery: Thống kê đánh giá cho mỗi sách
+            rating_subq = (
+                db_session.query(
+                    Ratings.book_id,
+                    func.avg(Ratings.rating).label("average_rating"),
+                    func.count(Ratings.rating_id).label("rating_count"),
+                    func.max(Ratings.created_at).label("last_rating_at")
+                )
+                .group_by(Ratings.book_id)
+                .subquery()
+            )
 
-        cursor.execute("""
-            SELECT b.book_id, b.title, b.description, b.cover_url, 
-                   GROUP_CONCAT(c.name SEPARATOR ', ') AS category_names, a.name AS author_name,
-                   rh.last_position, rh.last_read_at,
-                   COALESCE((SELECT AVG(rating) FROM ratings WHERE book_id = b.book_id), 0) AS average_rating,
-                   COALESCE((SELECT COUNT(*) FROM ratings WHERE book_id = b.book_id), 0) AS rating_count
-            FROM books b
-            LEFT JOIN book_categories bc ON b.book_id = bc.book_id
-            LEFT JOIN categories c ON bc.category_id = c.category_id
-            LEFT JOIN authors a ON b.author_id = a.author_id
-            LEFT JOIN reading_history rh ON rh.book_id = b.book_id AND rh.user_id = %s
-            WHERE b.book_id = %s
-            GROUP BY b.book_id, a.name, rh.last_position, rh.last_read_at
-        """, (session.get('user_id'), book_id))
-        book = cursor.fetchone()
-        cursor.fetchall()
-        if not book:
-            flash('Sách không tồn tại', 'error')
-            return redirect(url_for('user.library'))
+            # Truy vấn chính
+            book_query = (
+                db_session.query(
+                    Books.book_id,
+                    Books.title,
+                    Books.description,
+                    Books.cover_url,
+                    func.group_concat(Categories.name).label('category_names'),
+                    Authors.name.label('author_name'),
+                    ReadingHistory.last_position,
+                    ReadingHistory.last_read_at,
+                    func.coalesce(rating_subq.c.average_rating, 0).label('average_rating'),
+                    func.coalesce(rating_subq.c.rating_count, 0).label('rating_count'),
+                    rating_subq.c.last_rating_at
+                )
+                .outerjoin(t_book_categories, Books.book_id == t_book_categories.c.book_id)
+                .outerjoin(Categories, t_book_categories.c.category_id == Categories.category_id)
+                .outerjoin(Authors, Books.author_id == Authors.author_id)
+                .outerjoin(ReadingHistory, (ReadingHistory.book_id == Books.book_id) & (ReadingHistory.user_id == session['user_id']))
+                .outerjoin(rating_subq, rating_subq.c.book_id == Books.book_id)
+                .filter(Books.book_id == book_id)
+                .group_by(
+                    Books.book_id,
+                    Books.title,
+                    Books.description,
+                    Books.cover_url,
+                    Authors.name,
+                    ReadingHistory.last_position,
+                    ReadingHistory.last_read_at,
+                    rating_subq.c.average_rating,
+                    rating_subq.c.rating_count,
+                    rating_subq.c.last_rating_at
+                )
+            )
+            # Số người đọc sách
+            reader_count = (
+                db_session.query(func.count(ReadingHistory.user_id))
+                .filter(ReadingHistory.book_id == book_id)
+                .scalar()
+            )
+            result = book_query.first()
+            if not result:
+                flash('Sách không tồn tại', 'danger')
+                return redirect(url_for('user.library'))
 
-        return render_template('user/books/book_detail.html', book=book, csrf_token=session['csrf_token'])
+            book_dict = {
+                'book_id': result.book_id,
+                'title': result.title,
+                'description': result.description,
+                'cover_url': result.cover_url,
+                'category_names': result.category_names.replace(',', ', ') if result.category_names else '',
+                'author_name': result.author_name,
+                'last_position': result.last_position,
+                'last_read_at': result.last_read_at,
+                'average_rating': round(float(result.average_rating), 2) if result.average_rating else 0,
+                'rating_count': result.rating_count,
+                'last_rating_at': result.last_rating_at,
+                'reader_count': reader_count or 0
+            }
+
+            return render_template('user/books/book_detail.html', book=book_dict, csrf_token=session.get('csrf_token'))
 
     except Exception as e:
         logger.error(f"Book detail error: {str(e)}", exc_info=True)
-        flash('Lỗi khi xem chi tiết sách', 'error')
+        flash('Lỗi khi xem chi tiết sách', 'danger')
         return redirect(url_for('user.library'))
-    finally:
-        if cursor: cursor.close()
-        if conn: conn.close()
 
 # Đọc sách
 @user_bp.route('/read/<int:book_id>')
 @login_required
 def read_book(book_id):
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT 1 FROM books WHERE book_id = %s", (book_id,))
-        if not cursor.fetchone():
-            flash('Sách không tồn tại', 'error')
-            return redirect(url_for('user.library'))
-        return redirect(url_for('user.read_from_position', book_id=book_id, position=0))
+        with Session(engine) as db_session:
+            book = db_session.query(Books).filter(Books.book_id == book_id).first()
+            if not book:
+                flash('Sách không tồn tại', 'danger')
+                return redirect(url_for('user.library'))
+            return redirect(url_for('user.read_from_position', book_id=book_id, position=0))
     except Exception as e:
         logger.error(f"Read book error: {str(e)}", exc_info=True)
-        flash('Lỗi khi mở sách', 'error')
+        flash('Lỗi khi mở sách', 'danger')
         return redirect(url_for('user.library'))
-    finally:
-        if cursor: cursor.close()
-        if conn: conn.close()
 
 @user_bp.route('/read/<int:book_id>/from/<int:position>')
 @login_required
 def read_from_position(book_id, position):
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-        # Kiểm tra position hợp lệ
-        if position < 0:
-            position = 0
-            flash('Vị trí đọc không hợp lệ, đặt lại về 0', 'warning')
-        
-        # Cập nhật vị trí đọc
-        cursor.execute("""
-            INSERT INTO reading_history (user_id, book_id, last_read_at, last_position)
-            VALUES (%s, %s, NOW(), %s)
-            ON DUPLICATE KEY UPDATE 
-                last_read_at = NOW(),
-                last_position = VALUES(last_position)
-        """, (session['user_id'], book_id, position))
-        conn.commit()
-        
-        # Lấy nội dung sách
-        cursor.execute("SELECT * FROM books WHERE book_id = %s", (book_id,))
-        book = cursor.fetchone()
-        
-        if not book:
-            flash('Sách không tồn tại', 'error')
-            return redirect(url_for('user.library'))
-            
-        return render_template('user/books/read.html', 
-                            book=book,
-                            start_position=position)
-        
+        with Session(engine) as db_session:
+            book = db_session.query(Books).filter(Books.book_id == book_id).first()
+            if not book:
+                flash('Sách không tồn tại', 'danger')
+                return redirect(url_for('user.library'))
+
+            # Kiểm tra position hợp lệ
+            if position < 0:
+                position = 0
+                flash('Vị trí đọc không hợp lệ, đặt lại về 0', 'warning')
+
+            # Cập nhật vị trí đọc
+            reading_history = ReadingHistory(
+                user_id=session['user_id'],
+                book_id=book_id,
+                last_position=position,
+                last_read_at=datetime.now()
+            )
+            db_session.merge(reading_history)
+            db_session.commit()
+
+            return render_template('user/books/read.html', book=book, start_position=position, csrf_token=session.get('csrf_token'))
+
     except Exception as e:
         logger.error(f"Read book error: {str(e)}", exc_info=True)
-        flash('Lỗi khi mở sách', 'error')
+        flash('Lỗi khi mở sách', 'danger')
         return redirect(url_for('user.library'))
-    finally:
-        if cursor: cursor.close()
-        if conn: conn.close()
 
+# Cập nhật vị trí đọc
 @user_bp.route('/update-reading-position', methods=['POST'])
 @login_required
 def update_reading_position():
-    conn = None
-    cursor = None
     try:
         data = request.get_json()
-        book_id = data.get('book_id')
-        page = data.get('page')
+        book_id = int(data.get('book_id'))
+        page = int(data.get('page'))
 
         # Kiểm tra dữ liệu đầu vào
-        if not book_id or not isinstance(book_id, (int, str)) or not page or not isinstance(page, (int, str)):
-            logger.warning(f"Invalid input data: book_id={book_id}, page={page}")
-            return jsonify({'success': False, 'error': 'Dữ liệu không hợp lệ'}), 400
-        book_id = int(book_id)
-        page = int(page)
         if page < 0:
             logger.warning(f"Invalid page number: {page}")
             return jsonify({'success': False, 'error': 'Trang không hợp lệ'}), 400
 
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
+        with Session(engine) as db_session:
+            # Kiểm tra book_id
+            book = db_session.query(Books).filter(Books.book_id == book_id).first()
+            if not book:
+                logger.warning(f"Book not found: book_id={book_id}")
+                return jsonify({'success': False, 'error': 'Sách không tồn tại'}), 404
 
-        # Kiểm tra book_id
-        cursor.execute("SELECT COUNT(*) FROM books WHERE book_id = %s", (book_id,))
-        if cursor.fetchone()[0] == 0:
-            logger.warning(f"Book not found: book_id={book_id}")
-            return jsonify({'success': False, 'error': 'Sách không tồn tại'}), 404
+            # Cập nhật hoặc tạo mới
+            reading_history = ReadingHistory(
+                user_id=session['user_id'],
+                book_id=book_id,
+                last_position=page,
+                last_read_at=datetime.now()
+            )
+            db_session.merge(reading_history)
+            db_session.commit()
 
-        # Lấy user_id
-        user_id = session['user_id']  # Giả sử User model có id
+            logger.info(f"Updated reading position: user_id={session['user_id']}, book_id={book_id}, page={page}")
+            return jsonify({'success': True}), 200
 
-        # Cập nhật hoặc tạo mới
-        cursor.execute("""
-            INSERT INTO reading_history (user_id, book_id, last_position)
-            VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE last_position = %s
-        """, (user_id, book_id, page, page))
-        conn.commit()
-
-        logger.info(f"Updated reading position: user_id={user_id}, book_id={book_id}, page={page}")
-        return jsonify({'success': True}), 200
-
-    except mysql.connector.Error as db_err:
-        logger.error(f"Database error: {str(db_err)}", exc_info=True)
-        return jsonify({'success': False, 'error': 'Lỗi cơ sở dữ liệu'}), 500
+    except ValueError:
+        logger.warning(f"Invalid input data: book_id={book_id}, page={page}")
+        return jsonify({'success': False, 'error': 'Dữ liệu không hợp lệ'}), 400
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': 'Lỗi server'}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
 
+# Tìm kiếm sách
 @user_bp.route('/search')
 @login_required
 def search():
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
+        with Session(engine) as db_session:
+            category_id = request.args.get('category_id', type=int)
+            keyword = request.args.get('keyword', '').strip()
+            page = request.args.get('page', 1, type=int)
+            per_page = 12
 
-        category_id = request.args.get('category_id', type=int)
-        keyword = request.args.get('keyword', '').strip()
-        page = request.args.get('page', 1, type=int)
-        per_page = 12
-
-        # Kiểm tra độ dài keyword
-        if keyword and len(keyword) > 100:
-            flash('Từ khóa tìm kiếm quá dài, vui lòng thử lại', 'warning')
-            return redirect(url_for('user.library'))
-
-        conditions = []
-        params = []
-
-        # Nếu có category_id, kiểm tra tính hợp lệ
-        if category_id:
-            cursor.execute("SELECT 1 FROM categories WHERE category_id = %s", (category_id,))
-            if not cursor.fetchone():
-                flash('Thể loại không tồn tại', 'warning')
+            # Kiểm tra độ dài keyword
+            if keyword and len(keyword) > 100:
+                flash('Từ khóa tìm kiếm quá dài, vui lòng thử lại', 'warning')
                 return redirect(url_for('user.library'))
-            conditions.append("bc.category_id = %s")
-            params.append(category_id)
+            # Nếu cả keyword và category_id đều không có
+            if not keyword and not category_id:
+                flash('Vui lòng nhập từ khóa hoặc chọn thể loại để tìm kiếm.', 'danger')
+                return render_template(
+                    'user/books/search_results.html',
+                    books=[],
+                    current_category=None,
+                    keyword='',
+                    page=1,
+                    total_pages=1,
+                    total_books=0,
+                    csrf_token=session.get('csrf_token')
+                )
+            # Nếu có category_id, kiểm tra tính hợp lệ
+            if category_id:
+                category = db_session.query(Categories).filter(Categories.category_id == category_id).first()
+                if not category:
+                    flash('Thể loại không tồn tại', 'warning')
+                    return redirect(url_for('user.library'))
 
-        # Nếu có từ khoá
-        if keyword:
-            keyword_param = f"%{keyword}%"
-            search_conditions = [
-                "COALESCE(b.title, '') LIKE %s",
-                "COALESCE(a.name, '') LIKE %s"
+            # Subquery để lấy lịch sử đọc gần nhất
+            subquery = (
+                db_session.query(
+                    ReadingHistory.book_id,
+                    ReadingHistory.user_id,
+                    ReadingHistory.last_position,
+                    ReadingHistory.last_read_at
+                )
+                .filter(ReadingHistory.user_id == session['user_id'])
+                .filter(
+                    ReadingHistory.last_read_at == db_session.query(
+                        func.max(ReadingHistory.last_read_at)
+                    )
+                    .filter(ReadingHistory.user_id == session['user_id'])
+                    .filter(ReadingHistory.book_id == ReadingHistory.book_id)
+                    .correlate(ReadingHistory)
+                    .scalar_subquery()
+                )
+                .subquery()
+            )
+
+            # Truy vấn chính
+            query = (
+                db_session.query(
+                    Books.book_id,
+                    Books.title,
+                    Books.cover_url,
+                    Books.description,
+                    func.group_concat(Categories.name).label('category_names'),
+                    Authors.name.label('author_name'),
+                    subquery.c.last_position,
+                    subquery.c.last_read_at.label('last_read')
+                )
+                .outerjoin(t_book_categories, Books.book_id == t_book_categories.c.book_id)
+                .outerjoin(Categories, t_book_categories.c.category_id == Categories.category_id)
+                .outerjoin(Authors, Books.author_id == Authors.author_id)
+                .outerjoin(subquery, Books.book_id == subquery.c.book_id)
+            )
+
+            if category_id:
+                query = query.filter(t_book_categories.c.category_id == category_id)
+
+            if keyword:
+                keyword_param = f"%{keyword}%"
+                query = query.filter(
+                    or_(
+                        Books.title.like(keyword_param),
+                        Authors.name.like(keyword_param)
+                    )
+                )
+
+            # Đếm tổng số sách
+            count_query = query.group_by(Books.book_id, Authors.name, subquery.c.last_position, subquery.c.last_read_at)
+            total_books = db_session.query(func.count()).select_from(count_query.subquery()).scalar()
+            total_pages = (total_books + per_page - 1) // per_page
+
+            # Phân trang
+            offset = (page - 1) * per_page
+            books_query = query.group_by(Books.book_id, Authors.name, subquery.c.last_position, subquery.c.last_read_at).order_by(Books.book_id.desc()).limit(per_page).offset(offset)
+            books = [
+                {
+                    'book_id': book_id,
+                    'title': title,
+                    'cover_url': cover_url,
+                    'description': description,
+                    'category_names': category_names.replace(',', ', ') if category_names else '',
+                    'author_name': author_name,
+                    'last_position': last_position,
+                    'last_read': last_read
+                }
+                for book_id, title, cover_url, description, category_names, author_name, last_position, last_read in books_query.all()
             ]
-            conditions.append(f"({' OR '.join(search_conditions)})")
-            params.extend([keyword_param, keyword_param])
 
-        # Query để đếm tổng số sách và lấy dữ liệu phân trang
-        base_query = """
-            SELECT b.book_id, b.title, b.cover_url, b.description, 
-                   GROUP_CONCAT(c.name SEPARATOR ', ') AS category_names, a.name AS author_name
-            FROM books b
-            LEFT JOIN book_categories bc ON b.book_id = bc.book_id
-            LEFT JOIN categories c ON bc.category_id = c.category_id
-            LEFT JOIN authors a ON b.author_id = a.author_id
-        """
-        if conditions:
-            base_query += f" WHERE {' AND '.join(conditions)}"
-        
-        # Đếm tổng số sách
-        count_query = f"SELECT COUNT(DISTINCT subquery.book_id) as total FROM ({base_query} GROUP BY b.book_id, a.name) AS subquery"
+            # Nếu không có sách và page > 1, chuyển về trang 1
+            if not books and page > 1:
+                flash('Không tìm thấy sách ở trang này, quay lại trang đầu', 'info')
+                return redirect(url_for('user.search', category_id=category_id, keyword=keyword, page=1))
 
-        # count_query = f"SELECT COUNT(DISTINCT b.book_id) as total FROM ({base_query}) AS subquery"
-        cursor.execute(count_query, params)
-        total_books = cursor.fetchone()['total']
-        total_pages = (total_books + per_page - 1) // per_page
-
-        # Lấy dữ liệu phân trang
-        offset = (page - 1) * per_page
-        paginated_query = f"{base_query} GROUP BY b.book_id, a.name HAVING b.book_id IS NOT NULL ORDER BY b.book_id DESC LIMIT %s OFFSET %s"
-        params_paginated = params.copy()
-        params_paginated.extend([per_page, offset])
-        cursor.execute(paginated_query, params_paginated)
-        books = cursor.fetchall()
-
-        # Nếu không có sách và page > 1, chuyển về trang 1
-        if not books and page > 1:
-            flash('Không tìm thấy sách ở trang này, quay lại trang đầu', 'info')
-            return redirect(url_for('user.search', category_id=category_id, keyword=keyword, page=1))
-
-        # Lấy thông tin thể loại hiện tại
-        current_category = None
-        if category_id:
-            cursor.execute("SELECT name FROM categories WHERE category_id = %s", (category_id,))
-            current_category = cursor.fetchone()
-
-        # Debug
-        print("Final Query:", paginated_query)
-        print("Query Params:", params_paginated)
-
-        return render_template('user/books/search_results.html',
-                               books=books,
-                               current_category=current_category,
-                               keyword=keyword,
-                               page=page,
-                               total_pages=total_pages,
-                               total_books=total_books)
+            # Lấy thông tin thể loại hiện tại
+            current_category = None
+            if category_id:
+                current_category = db_session.query(Categories).filter(Categories.category_id == category_id).first()
+            all_categories = db_session.query(Categories).all()
+            return render_template(
+                'user/books/search_results.html',
+                books=books,
+                current_category=current_category,
+                categories=all_categories,
+                keyword=keyword,
+                category_id=category_id,
+                page=page,
+                total_pages=total_pages,
+                total_books=total_books,
+                csrf_token=session.get('csrf_token')
+            )
 
     except Exception as e:
         logger.error(f"Search error: {str(e)}", exc_info=True)
-        flash('Lỗi khi tìm kiếm sách', 'error')
+        flash('Lỗi khi tìm kiếm sách', 'danger')
         return redirect(url_for('user.library'))
 
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
+# Gửi đánh giá sách
 @user_bp.route('/submit_rating', methods=['POST'])
 @login_required
 def submit_rating():
     if request.headers.get('X-CSRFToken') != session.get('csrf_token'):
         return jsonify({'success': False, 'error': 'CSRF token không hợp lệ'})
-    conn = None
-    cursor = None
+
     try:
         data = request.get_json()
         book_id = int(data.get('book_id'))
@@ -534,22 +717,37 @@ def submit_rating():
         if not (1 <= rating <= 5):
             return jsonify({'success': False, 'error': 'Điểm đánh giá phải từ 1 đến 5'})
 
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
+        with Session(engine) as db_session:
+            # Kiểm tra sách tồn tại
+            book = db_session.query(Books).filter(Books.book_id == book_id).first()
+            if not book:
+                return jsonify({'success': False, 'error': 'Sách không tồn tại'})
 
-        # Chèn hoặc cập nhật đánh giá
-        cursor.execute("""
-            INSERT INTO ratings (user_id, book_id, rating)
-            VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE rating = %s
-        """, (session.get('user_id'), book_id, rating, rating))
-        conn.commit()
+            existing_rating = db_session.query(Ratings).filter(
+                and_(
+                    Ratings.book_id == book_id,
+                    Ratings.user_id == session['user_id']
+                )
+            ).first()
+            if existing_rating:
+                # Cập nhật rating và thời gian
+                existing_rating.rating = rating
+                existing_rating.created_at = datetime.now()
+            else:
+                # Tạo mới rating
+                new_rating = Ratings(
+                    user_id=session['user_id'],
+                    book_id=book_id,
+                    rating=rating,
+                    created_at=datetime.now()
+                )
+                db_session.add(new_rating)
+            db_session.commit()
 
-        return jsonify({'success': True})
+            return jsonify({'success': True})
 
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Dữ liệu không hợp lệ'})
     except Exception as e:
         logger.error(f"Submit rating error: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)})
-    finally:
-        if cursor: cursor.close()
-        if conn: conn.close()

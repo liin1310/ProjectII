@@ -1,29 +1,387 @@
-/* Custom table styles */
-.table-responsive {
+:root {
+  --primary-color: #2c7a7b; /* Teal đậm cho các yếu tố chính */
+  --primary-dark: #225e5f; /* Teal đậm hơn cho trạng thái hover */
+  --button-hover: #3b8d8e; /* Teal sáng cho trạng thái hover của nút */
+  --secondary-color: #f9f9f5; /* Ivory nhạt cho nền phụ */
+  --text-color: #1f2937; /* Xám xanh đậm cho chữ chính */
+  --border-radius: 10px; /* Độ bo góc, giữ nguyên */
+  --light-gray: #edf2f7; /* Xám nhạt cho nền và viền */
+  --medium-gray: #a0aec0; /* Xám trung cho viền và yếu tố phụ */
+  --dark-gray: #4a5568; /* Xám đậm cho chữ và biểu tượng */
+  --error-bg: #fed7d7; /* Nền coral nhạt cho thông báo lỗi */
+  --error-text: #9b2c2c; /* Coral đậm cho chữ thông báo lỗi */
+  --error-border: #f4a1a1; /* Viền coral nhạt cho thông báo lỗi */
+  --success-bg: #d4f4e2; /* Nền mint nhạt cho thông báo thành công */
+  --success-text: #276749; /* Mint đậm cho chữ thông báo thành công */
+  --success-border: #9ae6b4; /* Viền mint trung cho thông báo thành công */
+  --white: #ffffff; /* Trắng tinh cho viền hoặc nền */
+}
+.admin-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--light-gray);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.admin-sidebar {
+  width: 250px;
+  background-color: var(--dark-gray);
+  color: white;
+  padding: 20px 0;
+}
+
+.sidebar-header {
+  padding: 0 20px 20px;
+  margin-bottom: 20px;
+}
+
+.sidebar-header h3 {
+  color: white;
+  font-size: 1.2rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-nav li a {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  color: #b8c7ce;
+  text-decoration: none;
+  transition: all 0.3s;
+  gap: 10px;
+}
+
+.sidebar-nav li a:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-nav li.active a {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-left: 3px solid var(--primary-color);
+}
+
+.admin-main {
+  flex: 1;
+  padding: 20px;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.admin-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.welcome {
+  color: #555;
+  margin-right: 15px;
+}
+
+.logout-btn {
+  background-color: var(--danger-color);
+  color: white;
+  padding: 8px 15px;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: background-color 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.logout-btn:hover {
+  background-color: #c0392b;
+}
+
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 5px;
+  padding: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+}
+
+.stat-icon {
+  font-size: 2rem;
+  color: var(--primary-color);
+  margin-right: 20px;
+}
+
+.stat-info h3 {
+  margin: 0 0 5px;
+  font-size: 1rem;
+  color: #777;
+}
+
+.stat-info p {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.recent-books {
+  background: white;
+  border-radius: 5px;
+  padding: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.recent-books h2 {
+  margin-top: 0;
+  font-size: 1.3rem;
+  color: #333;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
   margin-top: 20px;
 }
 
-.table th {
-  white-space: nowrap;
+.book-card {
+  border: 1px solid #eee;
+  border-radius: 5px;
+  overflow: hidden;
+  transition: transform 0.3s;
 }
 
-/* Form styles */
+.book-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.book-cover img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.book-info {
+  padding: 15px;
+}
+
+.book-info h3 {
+  margin: 0 0 5px;
+  font-size: 1rem;
+  color: #333;
+}
+
+.book-info .author {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.book-actions {
+  display: flex;
+  gap: 10px;
+}
+
 .card {
-  margin-bottom: 30px;
-  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  background-color: var(--white);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--light-gray);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.card-header {
+/* Phần hiển thị ảnh */
+.card img {
+  border-radius: var(--border-radius);
+  object-fit: contain;
+}
+
+/* Tiêu đề sách */
+.card-title {
+  color: var(--primary-color);
+  font-size: 1.75rem;
   font-weight: 600;
 }
 
-/* Responsive adjustments */
+/* Văn bản mô tả và thông tin */
+.card-body p,
+.card-body li {
+  color: var(--text-color);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* Danh sách không dấu */
+.card-body ul {
+  padding-left: 0;
+}
+
+.card-body ul li {
+  margin-bottom: 0.5rem;
+}
+
+/* Nút chung */
+.btn {
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Nút chính */
+.btn-primary {
+  background-color: var(--primary-color);
+  border: none;
+  color: var(--white);
+}
+
+.btn-primary:hover {
+  background-color: var(--button-hover);
+}
+
+/* Nút phụ */
+.btn-secondary {
+  background-color: var(--light-gray);
+  color: var(--text-color);
+  border: 1px solid var(--medium-gray);
+}
+
+.btn-secondary:hover {
+  background-color: var(--medium-gray);
+  color: var(--white);
+}
+
+/* Nút xóa */
+.btn-danger {
+  background-color: var(--error-text);
+  color: var(--white);
+  border: none;
+}
+
+.btn-danger:hover {
+  background-color: #7b1e1e;
+}
+
+.btn-edit,
+.btn-delete {
+  padding: 5px 10px;
+  border-radius: 3px;
+  color: white;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.btn-edit {
+  background-color: var(--primary-color);
+}
+
+.btn-delete {
+  background-color: var(--danger-color);
+}
+.btn-outline-primary {
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  background-color: transparent;
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--primary-color);
+  color: var(--white);
+}
+/* Responsive styles */
 @media (max-width: 768px) {
-  .d-md-flex {
+  .admin-container {
     flex-direction: column;
   }
-  .me-md-2 {
-    margin-right: 0 !important;
-    margin-bottom: 10px;
+
+  .admin-sidebar {
+    width: 100%;
+  }
+
+  .book-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .card img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .d-flex.gap-2 {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+/* Thông báo */
+.flash-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.flash-message {
+  padding: 12px 20px;
+  border-radius: 8px;
+  min-width: 250px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  animation: fadeInOut 5s ease-in-out forwards;
+}
+.alert-error {
+  background-color: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+}
+
+.alert-success {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(20px);
   }
 }

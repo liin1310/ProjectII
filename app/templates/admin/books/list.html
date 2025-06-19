@@ -1,6 +1,7 @@
 {% extends "admin/base.html" %} 
 {% block title %}Quản lý sách{% endblock %} 
 {% block content %}
+
 <div class="d-flex justify-content-between mb-3">
   <h2>Danh sách sách</h2>
   <a href="{{ url_for('admin.add_book') }}" class="btn btn-success">
@@ -8,17 +9,17 @@
   </a>
 </div>
 
-<!-- Thêm form tìm kiếm -->
+<!-- Form tìm kiếm -->
 <div class="card mb-4">
   <div class="card-body">
-    <form method="GET" action="{{ url_for('admin.book_list') }}" class="row g-3">
+    <form id="search_form" method="GET" action="{{ url_for('admin.book_list') }}" class="row g-3">
       <div class="col-md-4">
         <input 
           type="text" 
           name="q" 
           class="form-control" 
           placeholder="Tìm theo tên sách, tác giả..." 
-          value="{{ request.args.get('q', '') }}"
+          value="{{ search_query|default('') }}"
         >
       </div>
       <div class="col-md-3">
@@ -27,7 +28,7 @@
           {% for category in categories %}
           <option 
             value="{{ category.category_id }}"
-            {% if request.args.get('category') | string == category.category_id|string %}selected{% endif %}
+            {% if selected_category|string == category.category_id|string %}selected{% endif %}
           >
             {{ category.name }}
           </option>
@@ -110,4 +111,5 @@
     </tbody>
   </table>
 </div>
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 {% endblock %}

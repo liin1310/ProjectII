@@ -1,26 +1,69 @@
 {% extends "admin/base.html" %} {% block title %}Dashboard{% endblock %} {%
 block content %}
 <div class="row">
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-header bg-primary text-white">
-        <h5 class="card-title">Thống kê nhanh</h5>
+  <div class="col-md-12">
+    <div class="card mb-4">
+      <div class="card-header bg-primary">
+        <h5 class="card-title mb-0 text-dark">Thống kê hệ thống</h5>
       </div>
       <div class="card-body">
-        <div class="row">
-          <div class="col-6">
-            <div class="card bg-light mb-3">
-              <div class="card-body text-center">
+        <div class="row g-3">
+          <!-- Tổng số sách -->
+          <div class="col-md-4 col-sm-6">
+            <div class="card bg-light text-center shadow-sm">
+              <div class="card-body">
                 <h3>{{ total_books }}</h3>
                 <p class="text-muted">Tổng số sách</p>
               </div>
             </div>
           </div>
-          <div class="col-6">
-            <div class="card bg-light mb-3">
-              <div class="card-body text-center">
+
+          <!-- Tổng số thể loại -->
+          <div class="col-md-4 col-sm-6">
+            <div class="card bg-light text-center shadow-sm">
+              <div class="card-body">
+                <h3>{{ total_categories }}</h3>
+                <p class="text-muted">Tổng số thể loại</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Số người dùng (role=user) -->
+          <div class="col-md-4 col-sm-6">
+            <div class="card bg-light text-center shadow-sm">
+              <div class="card-body">
+                <h3>{{ total_readers }}</h3>
+                <p class="text-muted">Người dùng</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sách mới -->
+          <div class="col-md-4 col-sm-6">
+            <div class="card bg-light text-center shadow-sm">
+              <div class="card-body">
                 <h3>{{ new_books }}</h3>
                 <p class="text-muted">Sách mới (7 ngày)</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lượt đọc -->
+          <div class="col-md-4 col-sm-6">
+            <div class="card bg-light text-center shadow-sm">
+              <div class="card-body">
+                <h3>{{ total_reads }}</h3>
+                <p class="text-muted">Lượt đọc</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tổng số tác giả -->
+          <div class="col-md-4 col-sm-6">
+            <div class="card bg-light text-center shadow-sm">
+              <div class="card-body">
+                <h3>{{ total_authors }}</h3>
+                <p class="text-muted">Tổng số tác giả</p>
               </div>
             </div>
           </div>

@@ -32,17 +32,18 @@
           required
         />
 
-        {% with messages = get_flashed_messages(with_categories=true) %} {% if
-        messages %} {% for category, message in messages %}
-        <div class="alert alert-{{ category }}">{{ message }}</div>
-        {% endfor %} {% endif %} {% endwith %}
-
         <input type="submit" value="Đăng nhập" />
       </form>
 
       <div class="login-link">
         Chưa có tài khoản? <a href="register">Đăng ký ngay</a>
       </div>
+    </div>
+    <div class="flash-container">
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div class="alert alert-{{ category }} flash-message">{{ message }}</div>
+      {% endfor %} {% endif %} {% endwith %}
     </div>
   </body>
 </html>

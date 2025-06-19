@@ -1,43 +1,37 @@
 {% extends "user/base.html" %} {% block title %}Cập nhật thông tin{% endblock %}
 {% block content %}
-<link
-  rel="stylesheet"
-  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-/>
-<link rel="stylesheet" href="/static/css/user.css" />
-
 <nav class="profile-container">
   <div class="profile-header">
     <div class="profile-avatar">
       <i class="fas fa-user"></i>
     </div>
     <h3>Cập nhật thông tin</h3>
-    <div class="action-buttons">
-      <div class="action-buttons">
-        <a href="{{ url_for('user.profile') }}">
-          <i class="fa-regular fa-address-card"></i>Xem thông tin
-        </a>
-        <a
-          href=" {{ url_for('user.updateProfile') }}"
-          style="
-            color: white;
-            font-weight: bold;
-            font-size: larger;
-            transform: none;
-          "
-        >
-          <i class="fas fa-edit"></i> Chỉnh sửa thông tin
-        </a>
 
-        <a href=" {{ url_for('user.changePassword') }}">
-          <i class="fas fa-key"></i> Đổi mật khẩu
-        </a>
-      </div>
+    <div class="action-buttons">
+      <a href="{{ url_for('user.profile') }}">
+        <i class="fa-regular fa-address-card"></i>Xem thông tin
+      </a>
+      <a
+        href=" {{ url_for('user.updateProfile') }}"
+        style="
+          color: white;
+          font-weight: bold;
+          font-size: larger;
+          transform: none;
+        "
+      >
+        <i class="fas fa-edit"></i> Chỉnh sửa thông tin
+      </a>
+
+      <a href=" {{ url_for('user.changePassword') }}">
+        <i class="fas fa-key"></i> Đổi mật khẩu
+      </a>
     </div>
   </div>
 
   <div class="profile-body">
     <form method="POST" action="{{ url_for('user.updateProfile') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
       <div class="info-group">
         <label class="info-label" for="fullname">Họ và tên</label>
         <input
@@ -60,7 +54,6 @@
           value="{{ user.username }}"
           required
         />
-        <!-- <small class="text-muted">Không thể thay đổi tên đăng nhập</small> -->
       </div>
 
       <div class="info-group">
@@ -88,10 +81,7 @@
           required
         />
       </div>
-      {% with messages = get_flashed_messages(with_categories=true) %} {% if
-      messages %} {% for category, message in messages %}
-      <div class="alert alert-{{ category }}">{{ message }}</div>
-      {% endfor %} {% endif %} {% endwith %}
+
       <div class="form-footer">
         <button type="submit" class="save-btn">
           <i class="fas fa-save"></i> Lưu thay đổi

@@ -13,10 +13,7 @@
   <body>
     <div class="container">
       <h2>Đăng ký tài khoản</h2>
-      {% with messages = get_flashed_messages(with_categories=true) %} {% if
-      messages %} {% for category, message in messages %}
-      <div class="alert alert-{{ category }}">{{ message }}</div>
-      {% endfor %} {% endif %} {% endwith %}
+
       <form action="/register" method="POST">
         <label for="fullname">Họ và tên:</label>
         <input
@@ -76,6 +73,12 @@
       <div class="login-link">
         Đã có tài khoản? <a href="/login">Đăng nhập</a>
       </div>
+    </div>
+    <div class="flash-container">
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div class="alert alert-{{ category }} flash-message">{{ message }}</div>
+      {% endfor %} {% endif %} {% endwith %}
     </div>
   </body>
 </html>

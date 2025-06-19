@@ -1,19 +1,23 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash,session
-import mysql.connector
-import logging
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import DB_CONFIG
+from app.models import Base, Users 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+import logging
 
 # Cấu hình logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Tạo engine và session cho SQLAlchemy
+engine = create_engine(f"mysql+pymysql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}/{DB_CONFIG['database']}")
+Base.metadata.create_all(engine)  
+
 auth_bp = Blueprint('auth', __name__)
-@auth_bp.route('/')
-def index():
-    if 'username' in session:
-        return render_template('user/index.html', username=session['username'])
-    return render_template('user/index.html')
+
+
+
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -46,48 +50,41 @@ def register():
 
         # Xử lý đăng ký
         try:
-            conn = mysql.connector.connect(**DB_CONFIG)
-            if not conn.is_connected():
-                raise mysql.connector.Error("Không thể kết nối database")
+            with Session(engine) as db_session:
+                # Kiểm tra trùng username hoặc email
+                existing_user = db_session.query(Users).filter(
+                    (Users.username == username) | (Users.email == email)
+                ).first()
                 
-            cursor = conn.cursor(dictionary=True)
+                if existing_user:
+                    if existing_user.username == username:
+                        flash("Tên đăng nhập đã tồn tại", "error")
+                    else:
+                        flash("Email đã được đăng ký", "error")
+                    return redirect(url_for('auth.register'))
 
-            # Kiểm tra trùng
-            cursor.execute("SELECT username, email FROM users WHERE username = %s OR email = %s", 
-                         (username, email))
-            existing = cursor.fetchone()
-            
-            if existing:
-                if existing['username'] == username:
-                    flash("Tên đăng nhập đã tồn tại", "error")
-                else:
-                    flash("Email đã được đăng ký", "error")
-                return redirect(url_for('auth.register'))
+                # Hash password và tạo user mới
+                hashed_password = generate_password_hash(password)
+                new_user = Users(
+                    fullname=fullname,
+                    username=username,
+                    age=age,
+                    email=email,
+                    password=hashed_password
+                )
+                db_session.add(new_user)
+                db_session.commit()
+                
+                logger.info(f"User registered: {username}")
+                flash("Đăng ký thành công! Vui lòng đăng nhập", "success")
+                return redirect(url_for('auth.login')) 
 
-            # Hash password và tạo user
-            hashed_password = generate_password_hash(password)
-            cursor.execute(
-                "INSERT INTO users (username, fullname, age, email, password) VALUES (%s, %s, %s, %s, %s)", 
-                (username, fullname, age, email, hashed_password)
-            )
-            conn.commit()
-            
-            logger.info(f"User registered: {username}")
-            flash("Đăng ký thành công! Vui lòng đăng nhập", "success")
-            return redirect(url_for('auth.login')) 
-
-        except mysql.connector.Error as err:
+        except Exception as err:
             logger.error(f"Database error: {err}")
             flash("Lỗi hệ thống, vui lòng thử lại sau", "error")
             return redirect(url_for('auth.register'))
-            
-        finally:
-            if 'conn' in locals() and conn.is_connected():
-                cursor.close()
-                conn.close()
 
     return render_template('auth/register.html')
-
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():  
@@ -98,47 +95,37 @@ def login():
 
         # Xử lý đăng nhập
         try:
-            conn = mysql.connector.connect(**DB_CONFIG)
-            if not conn.is_connected():
-                raise mysql.connector.Error("Không thể kết nối database")
+            with Session(engine) as db_session:
+                # Kiểm tra email có tồn tại không
+                user = db_session.query(Users).filter(Users.email == email).first()
                 
-            cursor = conn.cursor(dictionary=True)
+                if not user:
+                    flash("Email không tồn tại trong hệ thống", "error")
+                    return redirect(url_for('auth.login'))
+                
+                # Kiểm tra mật khẩu 
+                if not check_password_hash(user.password, password):
+                    flash("Mật khẩu không chính xác", "error")
+                    return redirect(url_for('auth.login'))
+                
+                # Đăng nhập thành công - lưu thông tin vào session
+                session['user_id'] = user.user_id
+                session['username'] = user.username 
+                session['email'] = user.email
+                session['role'] = user.role
 
-            # Kiểm tra email có tồn tại không
-            cursor.execute("SELECT user_id, email, password, role FROM users WHERE email = %s", (email,))
-            user = cursor.fetchone()
-            
-            if not user:
-                flash("Email không tồn tại trong hệ thống", "error")
-                return redirect(url_for('auth.login'))
-            
-            # Kiểm tra mật khẩu 
-            if not check_password_hash(user['password'], password):
-                flash("Mật khẩu không chính xác", "error")
-                return redirect(url_for('auth.login'))
-            
-            # Đăng nhập thành công - lưu thông tin vào session
-            session['user_id'] = user['user_id']
-            session['email'] = user['email']
-            session['role'] = user['role']
+                # Phân hướng theo role
+                if user.role == 'admin':
+                    flash("Đăng nhập thành công!", "success")
+                    return redirect(url_for('admin.dashboard'))
+                else:
+                    flash("Đăng nhập thành công!", "success")
+                    return redirect(url_for('user.home'))
 
-            #Phân hướng theo role
-            if user['role'] == 'admin':
-                flash("Đăng nhập thành công!", "success")
-                return redirect(url_for('admin.dashboard'))  # Chuyển hướng về trang chủ
-            else:
-                flash("Đăng nhập thành công!", "success")
-                return redirect(url_for('auth.index'))  # Chuyển hướng về trang chủ
-
-        except mysql.connector.Error as err:
+        except Exception as err:
             logger.error(f"Database error: {err}")
             flash("Lỗi hệ thống, vui lòng thử lại sau", "error")
             return redirect(url_for('auth.login'))
-            
-        finally:
-            if 'conn' in locals() and conn.is_connected():
-                cursor.close()
-                conn.close()
 
     return render_template('auth/login.html')
 
@@ -146,4 +133,4 @@ def login():
 def logout():  
     session.clear()
     flash('Đã đăng xuất thành công', 'success')
-    return redirect(url_for('auth.index'))
+    return render_template('user/index.html')

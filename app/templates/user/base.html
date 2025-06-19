@@ -12,10 +12,20 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     />
+    <script src="{{ url_for('static', filename='js/user.js') }}"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   </head>
   <body>
     <header>
-      <a id="main" href="{{ url_for('auth.index') }}">
+      <a id="main" href="{{ url_for('user.home') }}">
         <i class="fa-solid fa-house"></i>
       </a>
 
@@ -49,9 +59,9 @@
       <!-- Thêm vào header hoặc navbar -->
       {% if 'user_id' in session %}
       <div class="user-profile">
-        <i class="fas fa-user-circle"></i>
+        <i class="fas fa-user-circle" id="profileIcon"></i>
         <!-- Menu dropdown thông tin -->
-        <div class="user-dropdown">
+        <div class="user-dropdown" id="dropdownMenu">
           <a href="{{ url_for('user.profile') }}">Thông tin tài khoản</a>
           <a href="{{ url_for('user.library') }}">Danh sách sách đã đọc</a>
           <a href="{{ url_for('auth.logout') }}">Đăng xuất</a>
@@ -70,19 +80,11 @@
       <!-- Tuỳ trang -->
       {% endblock %}
     </div>
-
-    <script>
-      function toggleGenres() {
-        const hiddenGenres = document.querySelectorAll(".genre-item.hidden");
-        const toggleIcon = document.getElementById("toggle-icon");
-
-        hiddenGenres.forEach((genre) => {
-          genre.classList.toggle("hidden");
-        });
-
-        toggleIcon.classList.toggle("fa-chevron-down");
-        toggleIcon.classList.toggle("fa-chevron-up");
-      }
-    </script>
+    <div class="flash-container">
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div class="alert alert-{{ category }} flash-message">{{ message }}</div>
+      {% endfor %} {% endif %} {% endwith %}
+    </div>
   </body>
 </html>

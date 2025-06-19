@@ -5,21 +5,16 @@
   <div class="row row-cols-1 row-cols-md-3 g-4">
     {% for book in books %}
     <div class="col">
-      <div class="card h-100 shadow-sm book-card">
+      <div class="card h-100 shadow-sm book-cover">
         <!-- Ảnh bìa sách -->
         <a href="{{ url_for('user.book_detail', book_id=book.book_id) }}">
           {% if book.cover_url %}
           <img
             src="{{ url_for('static', filename=book.cover_url) }}"
             alt="{{ book.title }}"
-            class="card-img-top book-cover"
+            class="card-img-top"
           />
-          {% else %}
-          <img
-            src="https://via.placeholder.com/200x300?text=No+Cover"
-            alt="{{ book.title }}"
-            class="card-img-top book-cover"
-          />
+
           {% endif %}
         </a>
         <!-- Thông tin sách -->
@@ -28,6 +23,7 @@
             <a
               href="{{ url_for('user.book_detail', book_id=book.book_id) }}"
               class="text-decoration-none book-title"
+              style="color: black"
             >
               {{ book.title }}
             </a>
@@ -54,6 +50,7 @@
               <div
                 class="progress-bar"
                 role="progressbar"
+                style="width: {{ book.last_position }}%;"
                 aria-valuenow="{{ book.last_position }}"
                 aria-valuemin="0"
                 aria-valuemax="100"
@@ -91,14 +88,4 @@
   </div>
 </div>
 
-<!-- Tài nguyên bổ sung -->
-<link
-  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-  rel="stylesheet"
-/>
-<link
-  href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
-  rel="stylesheet"
-/>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 {% endblock %}

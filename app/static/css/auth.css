@@ -46,12 +46,23 @@ label {
 }
 
 /* Thông báo */
-.alert {
-  padding: 10px;
-  margin-bottom: 15px;
-  border-radius: calc(var(--border-radius) - 5px);
+.flash-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
+.flash-message {
+  padding: 12px 20px;
+  border-radius: 8px;
+  min-width: 250px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  animation: fadeInOut 5s ease-in-out forwards;
+}
 .alert-error {
   background-color: var(--error-bg);
   color: var(--error-text);
@@ -62,6 +73,23 @@ label {
   background-color: var(--success-bg);
   color: var(--success-text);
   border: 1px solid var(--success-border);
+}
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
 }
 
 /* Form */

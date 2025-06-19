@@ -1,99 +1,120 @@
-{% extends "admin/base.html" %}
-
-{% block title %}Chỉnh sửa sách{% endblock %}
-
-{% block content %}
+{% extends "admin/base.html" %} {% block title %}Chỉnh sửa sách{% endblock %} {%
+block content %}
 <div class="card">
-    <div class="card-header bg-primary text-white">
-        <h4 class="card-title">Chỉnh sửa sách: {{ book.title }}</h4>
-    </div>
-    <div class="card-body">
-        <form method="POST" enctype="multipart/form-data">
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label">Tên sách *</label>
-                    <input type="text" name="title" class="form-control" 
-                           value="{{ book.title }}" required>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Tác giả *</label>
-                    <select name="author_id" class="form-select" required>
-                        <option value="">-- Chọn tác giả --</option>
-                        {% for author in authors %}
-                        <option value="{{ author.author_id }}" 
-                                {% if author.author_id == book.author_id %}selected{% endif %}>
-                            {{ author.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Danh mục *</label>
-                    <div class="category-checkboxes">
-                        {% for category in categories %}
-                        <div class="form-check">
-                            <input type="checkbox" name="category_id" value="{{ category.category_id }}" 
-                                   class="form-check-input" 
-                                   {% if category.category_id in current_categories %}checked{% endif %}>
-                            <label class="form-check-label">{{ category.name }}</label>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
+  <div class="card-header bg-primary">
+    <h4 class="card-title text-dark">Chỉnh sửa sách: {{ book.title }}</h4>
+  </div>
+  <div class="card-body">
+    <form method="POST" enctype="multipart/form-data">
+      {% if form and form.csrf_token %} {{ form.csrf_token }} {% endif %}
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Tên sách *</label>
+          <input
+            type="text"
+            name="title"
+            class="form-control"
+            value="{{ book.title }}"
+            required
+          />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Tác giả *</label>
+          <input
+            type="text"
+            name="author_name"
+            class="form-control"
+            value="{{ book.author_name if book.author_name else '' }}"
+            required
+          />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Danh mục *</label>
+          <div class="category-checkboxes">
+            {% for category in categories %}
+            <div class="form-check">
+              <input
+                type="checkbox"
+                name="category_id"
+                value="{{ category.category_id }}"
+                class="form-check-input"
+                {%
+                if
+                category.category_id
+                in
+                current_categories
+                %}checked{%
+                endif
+                %}
+              />
+              <label class="form-check-label">{{ category.name }}</label>
             </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
 
-            <div class="row mb-3">
-                <div class="col-md-4">
-                    <label class="form-label">Ảnh bìa hiện tại</label>
-                    {% if book.cover_url %}
-                    <img src="{{ url_for('static', filename=book.cover_url) }}" class="img-thumbnail d-block mb-2" style="max-height: 100px;">
-                    {% endif %}
-                    <input type="file" name="cover" class="form-control" accept="image/*">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">File sách hiện tại</label>
-                    {% if book.file_url %}
-                    <a href="{{ url_for('static', filename=book.file_url) }}" target="_blank" class="d-block mb-2">
-                        <i class="fas fa-file-pdf"></i> Xem file
-                    </a>
-                    {% endif %}
-                    <input type="file" name="file" class="form-control" accept=".pdf">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Năm xuất bản</label>
-                    <input type="number" name="published_year" class="form-control" 
-                           value="{{ book.published_year or '' }}">
-                </div>
-            </div>
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <label class="form-label">Ảnh bìa hiện tại</label>
+          {% if book.cover_url %}
+          <img
+            src="{{ url_for('static', filename=book.cover_url) }}"
+            class="img-thumbnail d-block mb-2"
+            style="max-height: 100px"
+          />
+          {% endif %}
+          <input
+            type="file"
+            name="cover"
+            class="form-control"
+            accept="image/*"
+          />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">File sách hiện tại</label>
+          {% if book.file_url %}
+          <a
+            href="{{ url_for('static', filename=book.file_url) }}"
+            target="_blank"
+            class="d-block mb-2"
+          >
+            <i class="fas fa-file-pdf"></i> Xem file
+          </a>
+          {% endif %}
+          <input type="file" name="file" class="form-control" accept=".pdf" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Năm xuất bản</label>
+          <input
+            type="number"
+            name="published_year"
+            class="form-control"
+            value="{{ book.published_year or '' }}"
+          />
+        </div>
+      </div>
 
-            <div class="mb-3">
-                <label class="form-label">Mô tả</label>
-                <textarea name="description" class="form-control" rows="3">{{ book.description or '' }}</textarea>
-            </div>
+      <div class="mb-3">
+        <label class="form-label">Mô tả</label>
+        <textarea name="description" class="form-control" rows="3">
+{{ book.description or '' }}</textarea
+        >
+      </div>
 
-            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                <a href="{{ url_for('admin.book_list') }}" class="btn btn-secondary me-md-2">
-                    Hủy bỏ
-                </a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Cập nhật
-                </button>
-            </div>
-        </form>
-    </div>
+      <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        <a
+          href="{{ url_for('admin.book_list') }}"
+          class="btn btn-secondary me-md-2"
+        >
+          Hủy bỏ
+        </a>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save"></i> Cập nhật
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 
-<!-- Thêm CSS để danh sách checkbox hiển thị đẹp hơn -->
-<style>
-  .category-checkboxes {
-    max-height: 150px; /* Giới hạn chiều cao */
-    overflow-y: auto; /* Thêm thanh cuộn nếu danh sách dài */
-    padding: 5px;
-    border: 1px solid #ced4da; /* Thêm viền giống form-control */
-    border-radius: 0.25rem;
-  }
-  .form-check {
-    margin-bottom: 5px;
-  }
-</style>
 {% endblock %}

@@ -1,10 +1,5 @@
 {% extends "user/base.html" %} {% block title %}Thông tin tài khoản{% endblock
 %} {% block content %}
-<link
-  rel="stylesheet"
-  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-/>
-<link rel="stylesheet" href="/static/css/user.css" />
 <nav class="profile-container">
   <div class="profile-header">
     <div class="profile-avatar">
@@ -13,21 +8,21 @@
     <h3>Thông tin tài khoản</h3>
     <div class="action-buttons">
       <a
-        href=" {{ url_for('user.profile') }} "
+        href="{{ url_for('user.profile') }}"
         style="
           color: white;
           font-weight: bold;
           font-size: larger;
           transform: none;
         "
-      >
-        <i class="fa-regular fa-address-card"></i>Xem thông tin
+        ><i class="fa-regular fa-address-card"></i>Xem thông tin
       </a>
+
       <a href=" {{ url_for('user.updateProfile') }}">
         <i class="fas fa-edit"></i> Chỉnh sửa thông tin
       </a>
 
-      <a href=" {{ url_for('user.changePassword' )}}">
+      <a href=" {{ url_for('user.changePassword') }}">
         <i class="fas fa-key"></i> Đổi mật khẩu
       </a>
     </div>
